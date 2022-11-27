@@ -1,0 +1,7 @@
+<map id="mod_hd_phys::hd_add_source" name="mod_hd_phys::hd_add_source">
+<area shape="rect" id="node1" title=" " alt="" coords="5,108,172,149"/>
+<area shape="rect" id="node2" href="$namespacemod__dust.html#a63222be92b15ca739af19cd425247e3b" title="w[iw]= w[iw]+qdt*S[wCT, x] where S is the source based on wCT within ixO" alt="" coords="234,5,387,47"/>
+<area shape="rect" id="node3" href="$namespacemod__gravity.html#ab1d9813bcabaa6449eb6534d567537e1" title="w[iw]=w[iw]+qdt*S[wCT,qtC,x] where S is the source based on wCT within ixO" alt="" coords="232,71,389,112"/>
+<area shape="rect" id="node4" href="$namespacemod__radiative__cooling.html#a7b37d80a2bb954fedb9fa305980f3bc0" title=" " alt="" coords="224,137,397,193"/>
+<area shape="rect" id="node5" href="$namespacemod__viscosity.html#a61f06d68c91f32ec45245f989be9614c" title=" " alt="" coords="220,217,401,259"/>
+</map>

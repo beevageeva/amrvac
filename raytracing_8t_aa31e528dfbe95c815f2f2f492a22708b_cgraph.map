@@ -1,0 +1,6 @@
+<map id="getgriddata" name="getgriddata">
+<area shape="rect" id="node1" title=" " alt="" coords="5,56,103,83"/>
+<area shape="rect" id="node2" href="$raytracing_8t.html#a41888c61e2558308f08d72f0bac17e28" title=" " alt="" coords="151,5,304,32"/>
+<area shape="rect" id="node3" href="$raytracing_8t.html#a7b47a89cae5b76741050635d3ecdf25b" title=" " alt="" coords="168,56,287,83"/>
+<area shape="rect" id="node4" href="$comm__lib_8t.html#a49b49ea9ffbbadfe688e332921c4cddd" title="Exit MPI&#45;AMRVAC with an error message." alt="" coords="352,81,427,108"/>
+</map>
