@@ -214,6 +214,7 @@ mod_mhd_phys.o: mod_convert.mod
 mod_mhd_phys.o: mod_fix_conserve.mod
 mod_mhd_phys.o: mod_geometry.mod
 mod_mhd_phys.o: mod_gravity.mod
+mod_mhd_phys.o: mod_ionization_degree.mod
 mod_mhd_phys.o: mod_magnetofriction.mod
 mod_mhd_phys.o: mod_multigrid_coupling.mod
 mod_mhd_phys.o: mod_particles.mod
@@ -364,10 +365,7 @@ mod_twofl_roe.o: mod_tvd.mod
 mod_twofl_roe.o: mod_twofl_phys.mod
 mod_variables.o: mod_basic_types.mod
 mod_viscosity.o: mod_geometry.mod
-mod_viscosity.o: mod_physics.mod
 mod_weno.o: mod_physics.mod
-pointgrav.o: mod_geometry.mod
-raytracing.o: mod_raytracing.mod
 refine.o: mod_amr_fct.mod
 refine.o: mod_physics.mod
 set_B0.o: mod_geometry.mod

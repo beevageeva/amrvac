@@ -14,42 +14,22 @@
 !=====================================================
 
  &filelist
-        typefilelog='regression_test'
-        base_filename = 'icarus_3d'
         autoconvert   = .true.
         saveprim      = .true.
-        !base_filename = 'Icarus_cone_2015June_5CMES'
+        base_filename = 'icarus_3d'
+        typefilelog = 'regression_test'
         convert_type  = 'vtuBCCmpi'
         slice_type    = 'csv'
         nocartesian   = .true.
         nwauxio       = 3
-
-/
-
+ /
 
  &savelist
-        itsave(1,1)   = 0
-        itsave(1,2)   = 0
-
-        !tsavestart(2) = 336.0
-        !dtsave_dat    = 24.0
-        
-        !dtsave_log=1d-1
-        !dtsave_dat=5d0
-
-        ditsave_dat=50
-        ditsave_log=1
-
-
-
-/
-
-
+        dtsave_log       = 1.d-3
+ /
 
  &stoplist
-        !time_max      = 576.0d0
-        !time_max      = 10.0d0
-        it_max      = 100
+        time_max      = 5.d-2
  /
 
  &methodlist
@@ -65,7 +45,6 @@
         small_values_method = 'replace'
         small_values_daverage = 8
  /
-
 
 
  &mhd_list
@@ -87,16 +66,15 @@
  &meshlist
         stretch_dim(1)='uni'
         stretch_uncentered = .false.
-
         refine_criterion=0
         refine_max_level = 1
         nbufferx1=0
         nbufferx2=0
         nbufferx3=0
-        block_nx1=30
+        block_nx1=6
         block_nx2=8
         block_nx3=12
-        domain_nx1= 300
+        domain_nx1= 60
         domain_nx2= 32
         domain_nx3= 96
         xprobmin1=21.5
@@ -107,8 +85,8 @@
         xprobmax3=1.0d0
  /
 
-
  &paramlist
         typecourant='maxsum'
         courantpar=0.9d0
         slowsteps=10
+ /
