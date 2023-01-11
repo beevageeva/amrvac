@@ -1,4 +1,4 @@
-# Add variables to the *.dat* files
+# Dump variables to dat files
 
 There are two ways to add variables to the dat files:
 
@@ -10,10 +10,10 @@ To see all the tests which use this method, in the tests folder run:
 
 This method  consists in:
 1. assign an integer in the variable list w (in mod_usr.t, usr_init subroutine)
-2. implement one of the user methods which are called every timestep and properly assign the pointer to it  in usr_init subroutine
-for the following user defined subroutines: usr_process_grid, usr_modify_output,...
-and set the extra variables.
+2. implement one of the user methods which are called every timestep: usr_process_grid, usr_modify_output,...
+ and set there  the extra variables (and properly assign the pointer to the implemented subroutine  in usr_init).
 
+.
 ## New dat files
 With this method an extra dat file is generated with new variables. (see `amrvacio/mod_convert.t`). 
 1. set convert_type to dat_generic_mpi
@@ -67,17 +67,17 @@ A new file is created with hardcoded suffix `new`.
 2. For the two-fluid  model for:
     1. dumping full variables by setting in the parameter file:
 
-        &twofl_list
-          twofl_dump_full_vars=.true.
-        /  
+            &twofl_list
+              twofl_dump_full_vars=.true.
+            /  
 
     A new file is created with hardcoded suffix `new`.
 
     2. dumping the collisional terms by setting in the parameter file:
 
-        &twofl_list
-          twofl_dump_coll_terms=.true.
-        /  
+            &twofl_list
+              twofl_dump_coll_terms=.true.
+            /  
 
   A new file is created with hardcoded suffix `_coll`.
 
