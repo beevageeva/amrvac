@@ -3,20 +3,20 @@
 There are two ways to add variables to the dat files:
 
 ## Extra variables
-This method adds extra variables in the dat file (which is also used for restart) and it is used in many tests: ard/analytic_test_1d, demo/Advect_ParticleSampling_2D, hd/Gresho_Chan_2D, ...
+This method adds extra variables in the dat file (which is also used for restart) and it is used in many tests: `ard/analytic_test_1d`, `demo/Advect_ParticleSampling_2D`, `hd/Gresho_Chan_2D`, ...
 To see all the tests which use this method, in the tests folder run: 
 
     find . -name 'mod_usr.t' -exec grep -H "var_set_extravar" {} \;
 
 This method  consists in:
-1. assign an integer in the variable list w (in mod_usr.t, usr_init subroutine)
-2. implement one of the user methods which are called every timestep: usr_process_grid, usr_modify_output,...
- and set there  the extra variables (and properly assign the pointer to the implemented subroutine  in usr_init).
+1. Assign an index in the variable list w in `usr_init` subroutine (in `mod_usr.t`) using `var_set_extravar`
+2. Implement one of the user methods which are called every timestep: `usr_process_grid`, `usr_modify_output`,...
+ and set there  the extra variables (and properly assign the pointer to the implemented subroutine  in `usr_init`).
 
 .
 ## New dat files
 With this method an extra dat file is generated with new variables. (see `amrvacio/mod_convert.t`). 
-1. set convert_type to dat_generic_mpi
+1. Set `convert_type` to `"dat_generic_mpi"`:
 
         &filelist
               ...
@@ -24,7 +24,7 @@ With this method an extra dat file is generated with new variables. (see `amrvac
               ...
         /
 
-2. add a convert method in usr_init subroutine (`use mod_convert`):
+2. Add a convert method in `usr_init` subroutine (`use mod_convert`):
 
         call add_convert_method2(dump_vars, 4, "jx jy jz sxr", "_aux_") 
 
@@ -55,7 +55,8 @@ The last argument `_aux_` is the suffix added to `base_filename`  in order to ge
           wnew(ixO^S,4) =  tmp(ixO^S)
         end function dump_vars
 
-In the code this method is currently used: 
+### Examples of use in the main code
+
 1. For the mhd model for dumping full variables by setting in the parameter file:
 
         &mhd_list
