@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.9.1"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>MPI-AMRVAC: Add variables to the *.dat* files</title>
+<title>MPI-AMRVAC: Dump variables to dat files</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -72,7 +72,7 @@ $(function() {
 </div><!-- top -->
 <div class="PageDoc"><div class="header">
   <div class="headertitle">
-<div class="title">Add variables to the *.dat* files </div>  </div>
+<div class="title">Dump variables to dat files </div>  </div>
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><p>There are two ways to add variables to the dat files:</p>
@@ -80,7 +80,7 @@ $(function() {
 <p>This method adds extra variables in the dat file (which is also used for restart) and it is used in many tests: ard/analytic_test_1d, demo/Advect_ParticleSampling_2D, hd/Gresho_Chan_2D, ... To see all the tests which use this method, in the tests folder run: </p><pre class="fragment">find . -name 'mod_usr.t' -exec grep -H "var_set_extravar" {} \;
 </pre><p> This method consists in:</p><ol type="1">
 <li>assign an integer in the variable list w (in mod_usr.t, usr_init subroutine)</li>
-<li>implement one of the user methods which are called every timestep and properly assign the pointer to it in usr_init subroutine for the following user defined subroutines: usr_process_grid, usr_modify_output,... and set the extra variables.</li>
+<li>implement one of the user methods which are called every timestep: usr_process_grid, usr_modify_output,... and set there the extra variables (and properly assign the pointer to the implemented subroutine in usr_init).</li>
 </ol>
 <h1>New dat files</h1>
 <p>With this method an extra dat file is generated with new variables. (see <code><a class="el" href="mod__convert_8t.html">amrvacio/mod_convert.t</a></code>).</p><ol type="1">
@@ -117,19 +117,16 @@ $(function() {
    mhd_dump_full_vars=.true.
  /  
 </pre> A new file is created with hardcoded suffix <code>new</code>.</li>
-<li><p class="startli">For the two-fluid model for:</p><ol type="a">
-<li><p class="startli">dumping full variables by setting in the parameter file:</p>
-<p class="startli">&amp;twofl_list twofl_dump_full_vars=.true. / <br  />
-</p>
-</li>
+<li>For the two-fluid model for:<ol type="a">
+<li>dumping full variables by setting in the parameter file: <pre class="fragment"> &amp;twofl_list
+   twofl_dump_full_vars=.true.
+ /  
+</pre> A new file is created with hardcoded suffix <code>new</code>.</li>
+<li>dumping the collisional terms by setting in the parameter file: <pre class="fragment"> &amp;twofl_list
+   twofl_dump_coll_terms=.true.
+ /  
+</pre> A new file is created with hardcoded suffix <code>_coll</code>. </li>
 </ol>
-<p class="startli">A new file is created with hardcoded suffix <code>new</code>.</p><ol type="a">
-<li><p class="startli">dumping the collisional terms by setting in the parameter file:</p>
-<p class="startli">&amp;twofl_list twofl_dump_coll_terms=.true. / <br  />
-</p>
-</li>
-</ol>
-<p class="startli">A new file is created with hardcoded suffix <code>_coll</code>. </p>
 </li>
 </ol>
 </div></div><!-- contents -->
