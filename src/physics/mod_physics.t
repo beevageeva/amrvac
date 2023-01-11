@@ -32,8 +32,11 @@ module mod_physics
   !> Solve total energy equation or not
   logical :: phys_total_energy=.false.
 
-  !> Solve internal enery instead of total energy
+  !> Solve internal energy instead of total energy
   logical :: phys_internal_e=.false.
+
+  !> Solve partially ionized one-fluid plasma
+  logical :: phys_partial_ionization=.false.
 
   !> Array per direction per variable, which can be used to specify that certain
   !> fluxes have to be treated differently
@@ -73,7 +76,6 @@ module mod_physics
   procedure(sub_get_trad), pointer        :: phys_get_trad               => null()
   procedure(sub_boundary_adjust), pointer :: phys_boundary_adjust        => null()
   procedure(sub_write_info), pointer      :: phys_write_info             => null()
-  procedure(sub_angmomfix), pointer       :: phys_angmomfix              => null()
   procedure(sub_small_values), pointer    :: phys_handle_small_values    => null()
   procedure(sub_get_ct_velocity), pointer :: phys_get_ct_velocity        => null()
   procedure(sub_update_faces), pointer    :: phys_update_faces           => null()
@@ -84,7 +86,9 @@ module mod_physics
   ! set the equilibrium variables
   procedure(sub_set_equi_vars), pointer   :: phys_set_equi_vars          => null()
   ! subroutine with no parameters which creates EUV images
-  procedure(sub_check_params), pointer    :: phys_te_images           => null()
+  procedure(sub_check_params), pointer    :: phys_te_images              => null()
+  ! to update temperature variable with partial ionization
+  procedure(sub_update_temperature), pointer :: phys_update_temperature  => null()
 
   abstract interface
 
@@ -270,14 +274,6 @@ module mod_physics
        integer, intent(in) :: file_handle
      end subroutine sub_write_info
 
-     subroutine sub_angmomfix(fC,x,wnew,ixI^L,ixO^L,idim)
-       use mod_global_parameters
-       integer, intent(in)                :: ixI^L, ixO^L
-       double precision, intent(in)       :: x(ixI^S,1:ndim)
-       double precision, intent(inout)    :: fC(ixI^S,1:nwflux,1:ndim), wnew(ixI^S,1:nw)
-       integer, intent(in)                :: idim
-     end subroutine sub_angmomfix
-
      subroutine sub_small_values(primitive, w, x, ixI^L, ixO^L, subname)
        use mod_global_parameters
        logical, intent(in)             :: primitive
@@ -338,8 +334,14 @@ module mod_physics
        double precision, intent(in) :: dtfactor
      end subroutine sub_implicit_update
 
-   end interface
+     subroutine sub_update_temperature(ixI^L,ixO^L,wCT,w,x)
+       use mod_global_parameters
+       integer, intent(in)             :: ixI^L, ixO^L
+       double precision, intent(in)    :: wCT(ixI^S,nw),x(ixI^S,1:ndim)
+       double precision, intent(inout) :: w(ixI^S,nw)
+     end subroutine sub_update_temperature
 
+   end interface
 
 contains
 
@@ -404,9 +406,6 @@ contains
 
     if (.not. associated(phys_write_info)) &
          phys_write_info => dummy_write_info
-
-    if (.not. associated(phys_angmomfix)) &
-         phys_angmomfix => dummy_angmomfix
 
     if (.not. associated(phys_handle_small_values)) &
          phys_handle_small_values => dummy_small_values
@@ -518,14 +517,6 @@ contains
     call MPI_FILE_WRITE(fh, n_par, 1, MPI_INTEGER, st, er)
   end subroutine dummy_write_info
 
-  subroutine dummy_angmomfix(fC,x,wnew,ixI^L,ixO^L,idim)
-    use mod_global_parameters
-    double precision, intent(in)       :: x(ixI^S,1:ndim)
-    double precision, intent(inout)    :: fC(ixI^S,1:nwflux,1:ndim), wnew(ixI^S,1:nw)
-    integer, intent(in)                :: ixI^L, ixO^L
-    integer, intent(in)                :: idim
-  end subroutine dummy_angmomfix
-
   subroutine dummy_small_values(primitive, w, x, ixI^L, ixO^L, subname)
     use mod_global_parameters
     logical, intent(in)             :: primitive
@@ -597,7 +588,5 @@ contains
     !$OMP END PARALLEL DO
 
   end subroutine dummy_implicit_update
-
-
 
 end module mod_physics
