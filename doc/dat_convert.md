@@ -1,21 +1,22 @@
 # Add variables to the *.dat* files
 
 There are two ways to add variables to the dat files:
+
 ## Extra variables
-This method is used in many tests: ard/analytic_test_1d, demo/Advect_ParticleSampling_2D, hd/Gresho_Chan_2D, ...; 
-in the tests folder run: 
-  find . -name 'mod_usr.t' -exec grep -H "var_set_extravar" {} \;
-to see all the tests which use this method.
-It consists in:
+This method adds extra variables in the dat file (which is also used for restart) and it is used in many tests: ard/analytic_test_1d, demo/Advect_ParticleSampling_2D, hd/Gresho_Chan_2D, ...
+To see all the tests which use this method, in the tests folder run: 
+    find . -name 'mod_usr.t' -exec grep -H "var_set_extravar" {} \;
+
+This method  consists in:
 1. assign an integer in the variable list w (in mod_usr.t, usr_init subroutine)
 2. implement one of the user methods which are called every timestep and properly assign the pointer to it  in usr_init subroutine
 for the following user defined subroutines: usr_process_grid, usr_modify_output,...
 and set the extra variables.
-This method adds extra variables in the dat file (which is also used for restart).
 
 ## New dat files
 With this method an extra dat file is generated with new variables. (see `amrvacio/mod_convert.t`). 
 1. set convert_type to dat_generic_mpi
+
     &filelist
           ...
           convert_type = "dat_generic_mpi"
@@ -23,8 +24,11 @@ With this method an extra dat file is generated with new variables. (see `amrvac
     /
 
 2. add a convert method in usr_init subroutine (`use mod_convert`):
+
     call add_convert_method2(dump_vars, 4, "jx jy jz sxr", "_aux_") 
+
 or
+
     call add_convert_method(dump_vars, 4, (/" jx", " jy", " jz", "sxr"/), "_aux_")
 
 The first way is preferred as because Fortran requires the strrings in an array to have the same length and extra spaces might be necessary for this.
@@ -52,22 +56,28 @@ The last argument `_aux_` is the suffix added to `base_filename`  in order to ge
 
 In the code this method is currently used: 
 1. For the mhd model for dumping full variables by setting in the parameter file:
+
     &mhd_list
       mhd_dump_full_vars=.true.
     /  
+
 A new file is created with hardcoded suffix `new`.
 
 2. For the two-fluid  model for
   1. dumping full variables by setting in the parameter file:
+
       &twofl_list
         twofl_dump_full_vars=.true.
       /  
+
   A new file is created with hardcoded suffix `new`.
 
   2. dumping the collisional terms by setting in the parameter file:
+
       &twofl_list
         twofl_dump_coll_terms=.true.
       /  
+
   A new file is created with hardcoded suffix `_coll`.
 
  
