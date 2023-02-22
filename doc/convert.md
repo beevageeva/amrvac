@@ -12,7 +12,6 @@ Additional variables can be added in the _*.dat_ files as explained [here](dat_c
 > analysed with the Python package [yt](https://yt-project.org),
 > see [our documentation to get started with yt](yt_usage.md).
 
-
 However, in many instances, one would like to use data formats that
 are directly readable by some of the more widespread visualization
 software packages. Therefore, we created the _convert.t_ module, which
