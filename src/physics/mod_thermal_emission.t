@@ -373,6 +373,12 @@ module mod_thermal_emission
       double precision, intent(in) :: x(ixI^S,1:ndim)
       double precision, intent(out):: res(ixI^S)
     end subroutine get_subr1
+    subroutine get_subr2(var1,ixI^L,ixO^L,res)
+      use mod_global_parameters
+      integer, intent(in)          :: ixI^L, ixO^L
+      double precision, intent(in) :: var1(ixI^S)
+      double precision, intent(inout):: res(ixI^S)
+    end subroutine get_subr2
 
   end interface
 
@@ -381,6 +387,7 @@ module mod_thermal_emission
     procedure (get_subr1), pointer, nopass :: get_rho => null()
     procedure (get_subr1), pointer, nopass :: get_pthermal => null()
     procedure (get_subr1), pointer, nopass :: get_var_Rfactor => null()
+    procedure (get_subr2), pointer, nopass :: get_rho_eff => null()
 
   end type te_fluid
 
@@ -620,8 +627,11 @@ module mod_thermal_emission
       end select
       call fl%get_pthermal(w,x,ixI^L,ixO^L,pth)
       call fl%get_rho(w,x,ixI^L,ixO^L,Ne)
-      call fl%get_var_Rfactor(w,x,ixI^L,ixO^L,Te)
-      Te(ixO^S)=pth(ixO^S)/(Ne(ixO^S)*Te(ixO^S))*unit_temperature
+      call fl%get_var_Rfactor(w,x,ixI^L,ixO^L,flux)
+      Te(ixO^S)=pth(ixO^S)/(Ne(ixO^S)*flux(ixO^S))*unit_temperature
+      if (associated(fl%get_rho_eff)) then
+        call fl%get_rho_eff(flux,ixI^L,ixO^L,Ne)  
+      endif
       if (SI_unit) then
         Ne(ixO^S)=Ne(ixO^S)*unit_numberdensity/1.d6 ! m^-3 -> cm-3
         flux(ixO^S)=Ne(ixO^S)**2
@@ -705,8 +715,11 @@ module mod_thermal_emission
       numE=floor((Eu-El)/dE)
       call fl%get_pthermal(w,x,ixI^L,ixO^L,pth)
       call fl%get_rho(w,x,ixI^L,ixO^L,Ne)
-      call fl%get_var_Rfactor(w,x,ixI^L,ixO^L,Te)
-      Te(ixO^S)=pth(ixO^S)/(Ne(ixO^S)*Te(ixO^S))*unit_temperature
+      call fl%get_var_Rfactor(w,x,ixI^L,ixO^L,flux)
+      Te(ixO^S)=pth(ixO^S)/(Ne(ixO^S)*flux(ixO^S))*unit_temperature
+      if (associated(fl%get_rho_eff)) then
+        call fl%get_rho_eff(flux,ixI^L,ixO^L,Ne)  
+      endif
       if (SI_unit) then
         Ne(ixO^S)=Ne(ixO^S)*unit_numberdensity/1.d6 ! m^-3 -> cm-3
         EM(ixO^S)=(Ne(ixO^S))**2*1.d6 ! cm^-3 m^-3
@@ -799,8 +812,11 @@ module mod_thermal_emission
         numE=floor((Eu-El)/dE)
         call fl%get_pthermal(w,x,ixI^L,ixb^L,pth)
         call fl%get_rho(w,x,ixI^L,ixb^L,Ne)
-        call fl%get_var_Rfactor(w,x,ixI^L,ixb^L,Te)
-        Te(ixb^S)=pth(ixb^S)/(Ne(ixb^S)*Te(ixb^S))*unit_temperature
+        call fl%get_var_Rfactor(w,x,ixI^L,ixb^L,kbT)
+        Te(ixb^S)=pth(ixb^S)/(Ne(ixb^S)*kbT(ixb^S))*unit_temperature
+        if (associated(fl%get_rho_eff)) then
+          call fl%get_rho_eff(kbT,ixI^L,ixO^L,Ne)  
+        endif
         if (SI_unit) then
           Ne(ixO^S)=Ne(ixO^S)*unit_numberdensity/1.d6 ! m^-3 -> cm-3
           EM(ixb^S)=(I0*(Ne(ixb^S))**2)*dV(ixb^S)*(unit_length*1.d2)**3 ! cm^-3

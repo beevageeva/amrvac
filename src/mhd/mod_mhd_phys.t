@@ -111,6 +111,11 @@ module mod_mhd_phys
   logical, public :: has_equi_pe0 = .false.
   logical, public :: mhd_equi_thermal = .false.
 
+  integer, parameter :: te_rho_eff_none_ = -1
+  integer, parameter :: te_rho_eff_twofl_ = 1
+
+  integer, public :: te_rho_eff_method = te_rho_eff_none_
+
   !> equi vars indices in the state%equi_vars array
   integer, public :: equi_rho0_ = -1
   integer, public :: equi_pe0_ = -1
@@ -328,7 +333,7 @@ contains
       typedivbdiff, type_ct, compactres, divbwave, He_abundance, &
       H_ion_fr, He_ion_fr, He_ion_fr2, eq_state_units, SI_unit, B0field ,mhd_dump_full_vars,&
       B0field_forcefree, Bdip, Bquad, Boct, Busr, mhd_particles, mhd_partial_ionization,&
-      particles_eta, particles_etah,has_equi_rho0, has_equi_pe0,mhd_equi_thermal,&
+      particles_eta, particles_etah,has_equi_rho0, has_equi_pe0,mhd_equi_thermal, te_rho_eff_method,&
       boundary_divbfix, boundary_divbfix_skip, mhd_divb_4thorder, mhd_semirelativistic,&
       mhd_boris_simplification, mhd_reduced_c, clean_initial_divb, mhd_internal_e, &
       mhd_hydrodynamic_e, mhd_trac, mhd_trac_type, mhd_trac_mask, mhd_trac_finegrid, mhd_cak_force
@@ -862,6 +867,9 @@ contains
     te_fl_mhd%get_rho=> mhd_get_rho
     te_fl_mhd%get_pthermal=> mhd_get_pthermal
     te_fl_mhd%get_var_Rfactor => mhd_get_Rfactor
+    if(te_rho_eff_method==te_rho_eff_twofl_) then
+      te_fl_mhd%get_rho_eff => mhd_get_rhoc
+    endif
 {^IFTHREED
     phys_te_images => mhd_te_images
 }
@@ -7115,5 +7123,17 @@ contains
     Rfactor(ixO^S)=RR
 
   end subroutine Rfactor_from_constant_ionization
+
+
+  subroutine mhd_get_rhoc(Rfactor,ixI^L,ixO^L,rho)
+    use mod_global_parameters
+    integer, intent(in) :: ixI^L, ixO^L
+    double precision, intent(in):: Rfactor(ixI^S)
+    double precision, intent(inout):: rho(ixI^S)
+
+    rho(ixO^S)=rho(ixO^S) * (Rfactor(ixO^S)-1d0)
+
+  end subroutine mhd_get_rhoc
+
 
 end module mod_mhd_phys
