@@ -198,6 +198,7 @@ module mod_twofl_phys
   logical, public, protected :: B0field_forcefree=.true.
 
   logical :: twofl_cbounds_species = .true.
+  logical :: twofl_te_singlefl = .false.
 
   !> added from modules: gravity
   !> source split or not
@@ -273,7 +274,7 @@ contains
       has_equi_pe_n0, has_equi_rho_n0, twofl_thermal_conduction_n, twofl_radiative_cooling_n,  &
       twofl_alpha_coll,twofl_alpha_coll_constant,&
       twofl_coll_inc_te, twofl_coll_inc_ionrec,twofl_equi_ionrec,twofl_equi_thermal,&
-      twofl_equi_thermal_n,dtcollpar,&
+      twofl_equi_thermal_n,dtcollpar, twofl_te_singlefl,&
       twofl_dump_coll_terms,twofl_implicit_calc_mult_method,&
       boundary_divbfix, boundary_divbfix_skip, twofl_divb_4thorder, &
       clean_initial_divb,  &
@@ -752,9 +753,15 @@ contains
       end if
     end if
     allocate(te_fl_c)
-    te_fl_c%get_rho=> get_rhoc_tot
-    te_fl_c%get_pthermal=> twofl_get_pthermal_c
-    te_fl_c%get_var_Rfactor => Rfactor_c
+    if(twofl_te_singlefl) then
+      te_fl_c%get_rho=> get_rhomhd_tot
+      te_fl_c%get_pthermal=> get_pthermalmhd_tot
+      te_fl_c%get_var_Rfactor => Rfactor_mhd
+    else 
+      te_fl_c%get_rho=> get_rhoc_tot
+      te_fl_c%get_pthermal=> twofl_get_pthermal_c
+      te_fl_c%get_var_Rfactor => Rfactor_c
+    endif
 {^IFTHREED
     phys_te_images => twofl_te_images
 }
@@ -3202,7 +3209,7 @@ contains
   end subroutine twofl_get_flux
 
   !> w[iws]=w[iws]+qdt*S[iws,wCT] where S is the source based on wCT within ixO
-  subroutine twofl_add_source(qdt,ixI^L,ixO^L,wCT,w,x,qsourcesplit,active,wCTprim)
+  subroutine twofl_add_source(qdt,ixI^L,ixO^L,wCT,wCTprim,w,x,qsourcesplit,active)
     use mod_global_parameters
     use mod_radiative_cooling, only: radiative_cooling_add_source
     use mod_viscosity, only: viscosity_add_source
@@ -3210,11 +3217,10 @@ contains
 
     integer, intent(in)             :: ixI^L, ixO^L
     double precision, intent(in)    :: qdt
-    double precision, intent(in)    :: wCT(ixI^S,1:nw), x(ixI^S,1:ndim)
+    double precision, intent(in)    :: wCT(ixI^S,1:nw),wCTprim(ixI^S,1:nw),x(ixI^S,1:ndim)
     double precision, intent(inout) :: w(ixI^S,1:nw)
     logical, intent(in)             :: qsourcesplit
     logical, intent(inout)            :: active
-    double precision, intent(in), optional :: wCTprim(ixI^S,1:nw)
 
     if (.not. qsourcesplit) then
       ! Source for solving internal energy
@@ -3346,11 +3352,11 @@ contains
     }
 
     if(twofl_radiative_cooling_c) then
-      call radiative_cooling_add_source(qdt,ixI^L,ixO^L,wCT,&
+      call radiative_cooling_add_source(qdt,ixI^L,ixO^L,wCT,wCTprim,&
            w,x,qsourcesplit,active,rc_fl_c)
     end if
     if(twofl_radiative_cooling_n) then
-      call radiative_cooling_add_source(qdt,ixI^L,ixO^L,wCT,&
+      call radiative_cooling_add_source(qdt,ixI^L,ixO^L,wCT,wCTprim,&
            w,x,qsourcesplit,active,rc_fl_n)
     end if
 !
@@ -3624,6 +3630,49 @@ contains
     endif
 
   end subroutine get_rhoc_tot
+
+
+
+  subroutine get_rhomhd_tot(w,x,ixI^L,ixO^L,rhotot)
+    use mod_global_parameters
+    integer, intent(in)           :: ixI^L, ixO^L
+    double precision, intent(in)  :: w(ixI^S,1:nw), x(ixI^S,1:ndim)
+    double precision, intent(out) :: rhotot(ixI^S)
+    double precision :: tmp(ixI^S)
+    call get_rhoc_tot(w,x,ixI^L,ixO^L,rhotot)
+    call get_rhon_tot(w,x,ixI^L,ixO^L,tmp)
+    rhotot(ixO^S)=rhotot(ixO^S)+tmp(ixO^S)
+  end subroutine get_rhomhd_tot
+
+
+  subroutine get_pthermalmhd_tot(w,x,ixI^L,ixO^L,ptot)
+    use mod_global_parameters
+    integer, intent(in)           :: ixI^L, ixO^L
+    double precision, intent(in)  :: w(ixI^S,1:nw), x(ixI^S,1:ndim)
+    double precision, intent(out) :: ptot(ixI^S)
+    double precision :: tmp(ixI^S)
+    call twofl_get_pthermal_c(w,x,ixI^L,ixO^L,ptot)
+    call twofl_get_pthermal_n(w,x,ixI^L,ixO^L,tmp)
+    ptot(ixO^S)=ptot(ixO^S)+tmp(ixO^S)
+  end subroutine get_pthermalmhd_tot
+
+  subroutine Rfactor_mhd(w,x,ixI^L,ixO^L,Rfactor)
+    use mod_global_parameters
+    integer, intent(in) :: ixI^L, ixO^L
+    double precision, intent(in) :: w(ixI^S,1:nw)
+    double precision, intent(in) :: x(ixI^S,1:ndim)
+    double precision, intent(out):: Rfactor(ixI^S)
+    double precision :: pc(ixI^S),pn(ixI^S)
+
+    call twofl_get_pthermal_c(w,x,ixI^L,ixO^L,pc)
+    call twofl_get_pthermal_n(w,x,ixI^L,ixO^L,pn)
+    Rfactor(ixO^S)=(pn(ixO^S) + pc(ixO^S))/(pn(ixO^S)/Rn + pc(ixO^S)/Rc)
+
+  end subroutine Rfactor_mhd
+
+
+
+
 
   subroutine twofl_get_pthermal_c(w,x,ixI^L,ixO^L,pth)
     use mod_global_parameters

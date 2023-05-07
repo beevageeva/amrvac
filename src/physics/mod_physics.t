@@ -5,15 +5,12 @@ module mod_physics
   use mod_global_parameters, only: name_len, max_nw
   use mod_physics_hllc
   use mod_physics_roe
-  use mod_physics_ppm
-
-
 
   implicit none
   public
 
 
-  double precision :: phys_gamma=5.0/3
+  double precision :: phys_gamma=5.d0/3.d0
 
   !> String describing the physics type of the simulation
   character(len=name_len) :: physics_type = ""
@@ -189,16 +186,15 @@ module mod_physics
        double precision, intent(inout) :: wCT(ixI^S, 1:nw), w(ixI^S, 1:nw)
      end subroutine sub_add_source_geom
 
-     subroutine sub_add_source(qdt, ixI^L, ixO^L, wCT, w, x, &
-          qsourcesplit, active, wCTprim)
+     subroutine sub_add_source(qdt, ixI^L, ixO^L, wCT, wCTprim, w, x, &
+          qsourcesplit, active)
        use mod_global_parameters
        integer, intent(in)             :: ixI^L, ixO^L
        double precision, intent(in)    :: qdt
-       double precision, intent(in)    :: wCT(ixI^S, 1:nw), x(ixI^S, 1:ndim)
+       double precision, intent(in)    :: wCT(ixI^S, 1:nw), wCTprim(ixI^S,1:nw), x(ixI^S, 1:ndim)
        double precision, intent(inout) :: w(ixI^S, 1:nw)
        logical, intent(in)             :: qsourcesplit
        logical, intent(inout)          :: active !< Needs to be set to true when active
-       double precision, intent(in), optional :: wCTprim(ixI^S,1:nw)
      end subroutine sub_add_source
 
      !> Add global source terms on complete domain (potentially implicit)
@@ -350,13 +346,11 @@ contains
 
     use mod_physics_hllc, only: phys_hllc_check
     use mod_physics_roe, only: phys_roe_check
-    use mod_physics_ppm, only: phys_ppm_check
 
     if (physics_type == "") call mpistop("Error: no physics module loaded")
 
     call phys_hllc_check()
     call phys_roe_check()
-    call phys_ppm_check()
 
     ! Checks whether the required physics methods have been defined
     if (.not. associated(phys_check_params)) &
@@ -465,16 +459,15 @@ contains
     double precision, intent(inout) :: wCT(ixI^S, 1:nw), w(ixI^S, 1:nw)
   end subroutine dummy_add_source_geom
 
-  subroutine dummy_add_source(qdt, ixI^L, ixO^L, wCT, w, x, &
-       qsourcesplit, active, wCTprim)
+  subroutine dummy_add_source(qdt, ixI^L, ixO^L, wCT, wCTprim, w, x, &
+       qsourcesplit, active)
     use mod_global_parameters
     integer, intent(in)             :: ixI^L, ixO^L
     double precision, intent(in)    :: qdt
-    double precision, intent(in)    :: wCT(ixI^S, 1:nw), x(ixI^S, 1:ndim)
+    double precision, intent(in)    :: wCT(ixI^S, 1:nw), wCTprim(ixI^S,1:nw), x(ixI^S, 1:ndim)
     double precision, intent(inout) :: w(ixI^S, 1:nw)
     logical, intent(in)             :: qsourcesplit
     logical, intent(inout)          :: active
-    double precision, intent(in), optional :: wCTprim(ixI^S,1:nw)
     ! Don't have to set active, since it starts as .false.
   end subroutine dummy_add_source
 

@@ -603,6 +603,8 @@ module mod_global_parameters
   logical                       :: flathllc,flatcd,flatsh
   !> Use split or unsplit way to add user's source terms, default: unsplit
   logical                       :: source_split_usr
+  !> if any normal source term is added in split fasion
+  logical                       :: any_source_split=.false.
   logical                       :: dimsplit
 
   !> RK2(alfa) method parameters from Butcher tableau
@@ -689,6 +691,10 @@ module mod_global_parameters
   integer :: wavelength
   !> resolution of the EUV image
   character(len=std_len) :: resolution_euv
+  !> times for enhancing spatial resolution for EUV image/spectra
+  double precision :: instrument_resolution_factor
+  !> use arcsec as length unit of images/spectra
+  logical :: activate_unit_arcsec
   !> Base file name for synthetic SXR emission output
   character(len=std_len) :: filename_sxr
   ! minimum and maximum energy of SXR (keV)

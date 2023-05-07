@@ -289,7 +289,8 @@ contains
           filename_sxr,emin_sxr,emax_sxr,resolution_sxr,&
           LOS_theta,LOS_phi,image_rotate,x_origin,big_image,spectrum_wl,&
           location_slit,direction_slit,filename_spectrum,&
-          resolution_spectrum,spectrum_window_min,spectrum_window_max
+          resolution_spectrum,spectrum_window_min,spectrum_window_max,&
+          instrument_resolution_factor,activate_unit_arcsec
 
     ! default maximum number of grid blocks in a processor
     max_blocks=4000
@@ -308,7 +309,7 @@ contains
     !! default number of ghost-cell layers at each boundary of a block
     ! this is now done when the variable is defined in mod_global_parameters
     ! the physics modules might set this variable in their init subroutine called earlier
-    !nghostcells = 2
+    nghostcells = 2
 
     ! Allocate boundary conditions arrays in new and old style
     {
@@ -499,6 +500,8 @@ contains
     resolution_euv = 'instrument'
     resolution_sxr = 'instrument'
     resolution_spectrum = 'instrument'
+    instrument_resolution_factor=1.d0
+    activate_unit_arcsec=.true.
 
     allocate(flux_scheme(nlevelshi),typepred1(nlevelshi),flux_method(nlevelshi))
     allocate(limiter(nlevelshi),gradient_limiter(nlevelshi))
@@ -614,6 +617,8 @@ contains
          close(my_unit, status='delete')
       end if
     end if
+
+    if(source_split_usr) any_source_split=.true.
 
     ! restart filename from command line overwrites the one in par file
     if(restart_from_file_arg /= undefined) &
@@ -1378,6 +1383,11 @@ contains
     end do
     }
 
+    if(.not.phys_energy) then
+      flatcd=.false.
+      flatsh=.false.
+    end if
+
     if(any(limiter(1:nlevelshi)=='mp5')) then
       nghostcells=max(nghostcells,3)
     end if
@@ -1415,7 +1425,11 @@ contains
     end if
 
     if(any(limiter(1:nlevelshi)=='ppm')) then
-      nghostcells=max(nghostcells,4)
+      if(flatsh .or. flatcd) then
+        nghostcells=max(nghostcells,4)
+      else
+        nghostcells=max(nghostcells,3)
+      end if
     end if
 
     if(any(limiter(1:nlevelshi)=='weno7')) then

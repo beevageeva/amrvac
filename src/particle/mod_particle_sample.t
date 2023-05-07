@@ -1,4 +1,4 @@
-!> Scattered sampling based on fixed-particle interpolation
+!> Scattered sampling based on fixed- or moving-particle interpolation
 !> By Fabio Bacchini (2020)
 module mod_particle_sample
   use mod_particle_base
@@ -14,10 +14,6 @@ contains
     use mod_global_parameters
     integer :: idir
 
-    allocate(vp(ndir))
-    do idir = 1, ndir
-      vp(idir) = idir
-    end do
     ngridvars=nw
 
     particles_fill_gridvars => sample_fill_gridvars
@@ -97,11 +93,12 @@ contains
         particle(n)%self%x = 0.d0
         particle(n)%self%x(:) = x(:,n)
         particle(n)%self%u(:) = 0.d0
+
         allocate(particle(n)%payload(npayload))
-        call sample_update_payload(igrid,ps(igrid)%w,pso(igrid)%w,ps(igrid)%x,x(:,n),v(:,n),q(n),m(n),defpayload,ndefpayload,0.d0)
+        call sample_update_payload(igrid,x(:,n),v(:,n),q(n),m(n),defpayload,ndefpayload,0.d0)
         particle(n)%payload(1:ndefpayload) = defpayload      
         if (associated(usr_update_payload)) then
-          call usr_update_payload(igrid,ps(igrid)%w,pso(igrid)%w,ps(igrid)%x,x(:,n),v(:,n),q(n),m(n),usrpayload,nusrpayload,0.d0)
+          call usr_update_payload(igrid,x(:,n),v(:,n),q(n),m(n),usrpayload,nusrpayload,0.d0)
           particle(n)%payload(ndefpayload+1:npayload)=usrpayload
         end if
       end if
@@ -128,7 +125,7 @@ contains
       ! fill all variables:
       gridvars(igrid)%w(ixG^T,1:ngridvars) = w(ixG^T,1:ngridvars)
 
-      if(time_advance) then
+      if (time_advance) then
         gridvars(igrid)%wold(ixG^T,1:ngridvars) = 0.0d0
         w(ixG^T,1:nw) = pso(igrid)%w(ixG^T,1:nw)
         call phys_to_primitive(ixG^LL,ixG^LL,w,ps(igrid)%x)
@@ -173,10 +170,10 @@ contains
       particle(ipart)%self%time = tlocnew
 
       ! Update payload
-      call sample_update_payload(igrid,ps(igrid)%w,pso(igrid)%w,ps(igrid)%x,x,v,0.d0,0.d0,defpayload,ndefpayload,tlocnew)
+      call sample_update_payload(igrid,x,v,0.d0,0.d0,defpayload,ndefpayload,tlocnew)
       particle(ipart)%payload(1:ndefpayload) = defpayload
       if (associated(usr_update_payload)) then
-        call usr_update_payload(igrid,ps(igrid)%w,pso(igrid)%w,ps(igrid)%x,x,v,0.d0,0.d0,usrpayload,nusrpayload,tlocnew)
+        call usr_update_payload(igrid,x,v,0.d0,0.d0,usrpayload,nusrpayload,tlocnew)
         particle(ipart)%payload(ndefpayload+1:npayload) = usrpayload
       end if
 
@@ -185,27 +182,33 @@ contains
   end subroutine sample_integrate_particles
 
   !> Payload update
-  subroutine sample_update_payload(igrid,w,wold,xgrid,xpart,upart,qpart,mpart,mypayload,mynpayload,particle_time)
+  subroutine sample_update_payload(igrid,xpart,upart,qpart,mpart,mypayload,mynpayload,particle_time)
     use mod_global_parameters
     integer, intent(in)           :: igrid,mynpayload
-    double precision, intent(in)  :: w(ixG^T,1:nw),wold(ixG^T,1:nw)
-    double precision, intent(in)  :: xgrid(ixG^T,1:ndim),xpart(1:ndir),upart(1:ndir),qpart,mpart,particle_time
+    double precision, intent(in)  :: xpart(1:ndir),upart(1:ndir),qpart,mpart,particle_time
     double precision, intent(out) :: mypayload(mynpayload)
-    double precision              :: wp, wp1, wp2, td
+    double precision              :: myw(ixG^T,1:nw),mywold(ixG^T,1:nw)
+    double precision              :: wp, wpold, td
     integer                       :: ii
 
-    td = (particle_time - global_time) / dt
 
     ! There are npayload=nw payloads, one for each primitive fluid quantity
+    myw(ixG^T,1:nw) = ps(igrid)%w(ixG^T,1:nw)
+    if (time_advance) mywold(ixG^T,1:nw) = pso(igrid)%w(ixG^T,1:nw)
+
+    if (saveprim) then
+      call phys_to_primitive(ixG^LL,ixG^LL,myw,ps(igrid)%x)
+      if (time_advance) call phys_to_primitive(ixG^LL,ixG^LL,mywold,ps(igrid)%x)
+    end if
+
     do ii=1,mynpayload
-      if (.not.time_advance) then
-        call interpolate_var(igrid,ixG^LL,ixM^LL,w(ixG^T,ii),xgrid,xpart,wp)
-      else
-        call interpolate_var(igrid,ixG^LL,ixM^LL,wold(ixG^T,ii),xgrid,xpart,wp1)
-        call interpolate_var(igrid,ixG^LL,ixM^LL,w(ixG^T,ii),xgrid,xpart,wp2)
-        wp = wp1 * (1.0d0 - td) + wp2 * td
+      call interpolate_var(igrid,ixG^LL,ixM^LL,myw(ixG^T,ii),ps(igrid)%x,xpart,wp)
+      if (time_advance) then
+        td = (particle_time - global_time) / dt
+        call interpolate_var(igrid,ixG^LL,ixM^LL,mywold(ixG^T,ii),ps(igrid)%x,xpart,wpold)
+        wp = wpold * (1.0d0 - td) + wp * td
       end if
-      mypayload(ii) = wp
+      mypayload(ii) = wp*w_convert_factor(ii)
     end do
 
   end subroutine sample_update_payload
@@ -228,7 +231,7 @@ contains
 
     dt_p = dtsave_particles
 
-    ! Make sure the user-defined particle movement doesnt break communication
+    ! Make sure the user-defined particle movement doesn't break communication
     if (associated(usr_particle_position)) then
       xp = partp%self%x
       told = partp%self%time
@@ -246,20 +249,5 @@ contains
     call limit_dt_endtime(end_time - partp%self%time, dt_p)
 
   end function sample_get_particle_dt
-
-  !> Quick check if particle coordinate is inside igrid
-  !> (ghost cells included, except last one)
-  logical function point_in_igrid_ghostc(x, igrid, ngh)
-    use mod_global_parameters
-    use mod_geometry
-    integer, intent(in) :: igrid, ngh
-    double precision, intent(in) :: x(ndim)
-    double precision    :: grid_rmin(ndim), grid_rmax(ndim)
-
-    ! First check if the igrid is still there
-    grid_rmin      = [ {rnode(rpxmin^D_,igrid)-rnode(rpdx^D_,igrid)*(DBLE(nghostcells-ngh)-0.5d0)} ]
-    grid_rmax      = [ {rnode(rpxmax^D_,igrid)+rnode(rpdx^D_,igrid)*(DBLE(nghostcells-ngh)-0.5d0)} ]
-    point_in_igrid_ghostc = all(x >= grid_rmin) .and. all(x < grid_rmax)
-  end function point_in_igrid_ghostc
 
 end module mod_particle_sample
