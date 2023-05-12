@@ -266,6 +266,8 @@ contains
     if(type_divb==divb_glm) then
       phys_modify_wLR => mf2_modify_wLR
     end if
+    
+    phys_wider_stencil = 1
 
     ! pass to global variable to record electric field
     record_electric_field=mf2_record_electric_field
@@ -409,8 +411,6 @@ contains
       cmax(ixO^S)= abs(vel(ixO^S,idim)) + 1d0/(mf2_nu * minval(block%ds(ixO^S,1:ndim),dim=ndim+1))
     end if
 
-
-
   end subroutine mf2_get_cmax
 
   !> Estimating bounds for the minimum and maximum signal velocities
@@ -519,7 +519,7 @@ contains
     double precision, intent(in) :: w(ixI^S,nw)
     double precision, intent(in) :: x(ixI^S,1:ndim)
     double precision,intent(out) :: f(ixI^S,nwflux)
-    double precision             :: vel(ixO^S,1:ndir),  B(ixO^S,1:ndir)
+    double precision             :: vel(ixI^S,1:ndir),  B(ixI^S,1:ndir)
 
     integer                      :: idir
 
@@ -703,9 +703,10 @@ contains
 
     tmp(ixO^S)=sum(B(ixO^S,1:ndir)**2,dim=ndim+1)
     ! frictional coefficient
-    where(tmp(ixO^S)/=0.d0)
-      tmp(ixO^S)=1.d0/(tmp(ixO^S)*mf2_nu)
-    endwhere
+!    where(tmp(ixO^S)/=0.d0)
+!      tmp(ixO^S)=1.d0/(tmp(ixO^S)*mf2_nu)
+!    endwhere
+    tmp(ixO^S)=1.d0/(tmp(ixO^S)*mf2_nu+1d-12)
 
     do idir=1,ndir
       vel(ixO^S,idir)=vel(ixO^S,idir)*tmp(ixO^S)
