@@ -6,6 +6,9 @@ use mod_ghostcells_update
 use mod_physics, only: phys_req_diagonal,phys_te_images
 use mod_convert, only: convert_all
 use mod_thermal_emission
+
+character(len=std_len) :: convert_type_elem
+integer :: i
 !-----------------------------------------------------------------------------
 
 if(mype==0.and.level_io>0) write(unitterm,*)'reset tree to fixed level=',level_io
@@ -15,7 +18,10 @@ else if(.not. phys_req_diagonal) then
    call getbc(global_time,0.d0,ps,iwstart,nwgc)
 end if
 
-select case(convert_type)
+do i=1,number_convert_types
+convert_type_elem=convert_type_array(i)
+
+select case(convert_type_elem)
   case('tecplot','tecplotCC','tecline')
    call tecplot(unitconvert)
   case('tecplotmpi','tecplotCCmpi','teclinempi')
@@ -50,8 +56,6 @@ select case(convert_type)
       call phys_te_images
     endif
   case('dat_generic_mpi')
-    ! it is the responsability of the physcics module to pouplate the array of 
-    ! conversion methods by calling  
     call convert_all()
   case('user','usermpi')
      if (.not. associated(usr_special_convert)) then
@@ -62,7 +66,7 @@ select case(convert_type)
   case default
    call mpistop("Error in generate_plotfile: Unknown convert_type")
 end select
-
+enddo
 
 
 end subroutine generate_plotfile

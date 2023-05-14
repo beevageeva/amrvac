@@ -3209,14 +3209,14 @@ contains
   end subroutine twofl_get_flux
 
   !> w[iws]=w[iws]+qdt*S[iws,wCT] where S is the source based on wCT within ixO
-  subroutine twofl_add_source(qdt,ixI^L,ixO^L,wCT,wCTprim,w,x,qsourcesplit,active)
+  subroutine twofl_add_source(qdt,dtfactor,ixI^L,ixO^L,wCT,wCTprim,w,x,qsourcesplit,active)
     use mod_global_parameters
     use mod_radiative_cooling, only: radiative_cooling_add_source
     use mod_viscosity, only: viscosity_add_source
     !use mod_gravity, only: gravity_add_source
 
     integer, intent(in)             :: ixI^L, ixO^L
-    double precision, intent(in)    :: qdt
+    double precision, intent(in)    :: qdt,dtfactor
     double precision, intent(in)    :: wCT(ixI^S,1:nw),wCTprim(ixI^S,1:nw),x(ixI^S,1:ndim)
     double precision, intent(inout) :: w(ixI^S,1:nw)
     logical, intent(in)             :: qsourcesplit
@@ -4634,12 +4634,12 @@ contains
   end subroutine coll_get_dt
 
   ! Add geometrical source terms to w
-  subroutine twofl_add_source_geom(qdt,ixI^L,ixO^L,wCT,w,x)
+  subroutine twofl_add_source_geom(qdt,dtfactor,ixI^L,ixO^L,wCT,w,x)
     use mod_global_parameters
     use mod_geometry
 
     integer, intent(in)             :: ixI^L, ixO^L
-    double precision, intent(in)    :: qdt, x(ixI^S,1:ndim)
+    double precision, intent(in)    :: qdt, dtfactor,x(ixI^S,1:ndim)
     double precision, intent(inout) :: wCT(ixI^S,1:nw), w(ixI^S,1:nw)
 
     integer          :: iw,idir, h1x^L{^NOONED, h2x^L}

@@ -29,6 +29,9 @@ subroutine setdt()
       dx^D=rnode(rpdx^D_,igrid);
       ^D&dxlevel(^D)=rnode(rpdx^D_,igrid);
       block=>ps(igrid)
+      if(local_timestep) then
+        ps(igrid)%dt(ixM^T)=bigdouble
+      endif
 
       call getdt_courant(ps(igrid)%w,ixG^LL,ixM^LL,qdtnew,dx^D,ps(igrid)%x,&
            cmax_mype,a2max_mype)
@@ -39,8 +42,8 @@ subroutine setdt()
 
       if (associated(usr_get_dt)) then
          call usr_get_dt(ps(igrid)%w,ixG^LL,ixM^LL,qdtnew,dx^D,ps(igrid)%x)
+         dtnew          = min(dtnew,qdtnew)
       end if
-      dtnew          = min(dtnew,qdtnew)
       dtmin_mype     = min(dtmin_mype,dtnew)
     end do
     !$OMP END PARALLEL DO
@@ -243,9 +246,16 @@ subroutine setdt()
           end do
         end if
         ! courantmaxtots='max(summed c/dx)'
+        if(local_timestep) then
+          block%dt(ixO^S) = courantpar/cmaxtot(ixO^S)
+        endif
         courantmaxtots=max(courantmaxtots,maxval(cmaxtot(ixO^S)))
         if (courantmaxtots>smalldouble) dtnew=min(dtnew,courantpar/courantmaxtots)
+
       case (type_summax)
+        if(local_timestep) then
+          call mpistop("Type courant summax incompatible with local_timestep")
+        endif  
         if(slab_uniform) then
           ^D&dxinv(^D)=one/dx^D;
           do idims=1,ndim
@@ -265,6 +275,9 @@ subroutine setdt()
         ! courantmaxtot='summed max(c/dx)'
         if (courantmaxtot>smalldouble)  dtnew=min(dtnew,courantpar/courantmaxtot)
       case (type_minimum)
+        if(local_timestep) then
+          call mpistop("Type courant not implemented for local_timestep, use maxsum")
+        endif  
         if(slab_uniform) then
           ^D&dxinv(^D)=one/dx^D;
           do idims=1,ndim

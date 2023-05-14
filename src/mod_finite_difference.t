@@ -9,14 +9,14 @@ module mod_finite_difference
 
 contains
 
-  subroutine fd(qdt,ixI^L,ixO^L,idims^LIM,qtC,sCT,qt,snew,fC,fE,dxs,x)
+  subroutine fd(qdt,dtfactor,ixI^L,ixO^L,idims^LIM,qtC,sCT,qt,snew,fC,fE,dxs,x)
     use mod_physics
     use mod_source, only: addsource2
     use mod_finite_volume, only: reconstruct_LR
     use mod_global_parameters
     use mod_usr_methods
 
-    double precision, intent(in)                                     :: qdt, qtC, qt, dxs(ndim)
+    double precision, intent(in)                                     :: qdt, dtfactor, qtC, qt, dxs(ndim)
     integer, intent(in)                                              :: ixI^L, ixO^L, idims^LIM
     double precision, dimension(ixI^S,1:ndim), intent(in)            :: x
 
@@ -122,7 +122,7 @@ contains
       end do ! Next idims
     end if
 
-    if (.not.slab.and.idimsmin==1) call phys_add_source_geom(qdt,ixI^L,ixO^L,wCT,wnew,x)
+    if (.not.slab.and.idimsmin==1) call phys_add_source_geom(qdt,dtfactor,ixI^L,ixO^L,wCT,wnew,x)
 
     if(stagger_grid) call phys_face_to_center(ixO^L,snew)
 
@@ -132,6 +132,7 @@ contains
     endif
 
     call addsource2(qdt*dble(idimsmax-idimsmin+1)/dble(ndim), &
+         dtfactor*dble(idimsmax-idimsmin+1)/dble(ndim), &
          ixI^L,ixO^L,1,nw,qtC,wCT,wprim,qt,wnew,x,.false.,active)
 
     end associate
@@ -278,7 +279,7 @@ contains
 
   end subroutine reconstructR
 
-  subroutine centdiff(method,qdt,ixI^L,ixO^L,idims^LIM,qtC,sCT,qt,s,fC,fE,dxs,x)
+  subroutine centdiff(method,qdt,dtfactor,ixI^L,ixO^L,idims^LIM,qtC,sCT,qt,s,fC,fE,dxs,x)
 
     ! Advance the flow variables from global_time to global_time+qdt within ixO^L by
     ! fourth order centered differencing in space 
@@ -294,7 +295,7 @@ contains
 
     integer, intent(in) :: method
     integer, intent(in) :: ixI^L, ixO^L, idims^LIM
-    double precision, intent(in) :: qdt, qtC, qt, dxs(ndim)
+    double precision, intent(in) :: qdt, dtfactor, qtC, qt, dxs(ndim)
     type(state)      :: sCT, s
     double precision, intent(in) :: x(ixI^S,1:ndim)
     double precision :: fC(ixI^S,1:nwflux,1:ndim)
@@ -418,7 +419,7 @@ contains
       end do ! Next idims
     end if
 
-    if (.not.slab.and.idimsmin==1) call phys_add_source_geom(qdt,ixI^L,ixO^L,wCT,w,x)
+    if (.not.slab.and.idimsmin==1) call phys_add_source_geom(qdt,dtfactor,ixI^L,ixO^L,wCT,w,x)
 
     if(stagger_grid) call phys_face_to_center(ixO^L,s)
 
@@ -428,6 +429,7 @@ contains
     endif
 
     call addsource2(qdt*dble(idimsmax-idimsmin+1)/dble(ndim), &
+         dtfactor*dble(idimsmax-idimsmin+1)/dble(ndim), &
          ixI^L,ixO^L,1,nw,qtC,wCT,wprim,qt,w,x,.false.,active)
 
     end associate

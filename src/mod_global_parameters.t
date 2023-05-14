@@ -70,6 +70,9 @@ module mod_global_parameters
   !> uniform Cartesian geometry or not (stretched Cartesian)
   logical :: slab_uniform
 
+  !> each cell has its own timestep or not
+  logical :: local_timestep = .false.
+
   !> number of grid blocks in domain per dimension, in array over levels
   integer, dimension(:), allocatable :: ng^D
   !> extent of grid blocks in domain per dimension, in array over levels
@@ -281,6 +284,9 @@ module mod_global_parameters
   !> tecplotmpi, tecplotCCmpi, vtumpi, vtuCCmpi, vtuBmpi, vtuBCCmpi, pvtumpi, pvtuCCmpi,
   !> pvtuBmpi, pvtuBCCmpi, tecline, teclinempi, onegrid
   character(len=std_len) :: convert_type
+
+  integer :: number_convert_types=1
+  character(len=name_len),allocatable :: convert_type_array(:)
 
   character(len=std_len) :: collapse_type
 

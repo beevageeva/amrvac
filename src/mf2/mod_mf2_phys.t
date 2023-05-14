@@ -9,6 +9,8 @@ module mod_mf2_phys
 
   !> maximal limit of magnetofrictional velocity in cm s^-1 (Pomoell 2019 A&A)
   double precision, public                :: mf2_vmax = 3.d6
+  !> whether dump full variables (when B0 splitting is used) in a separate dat file
+  logical, public, protected              :: mf2_dump_full_vars = .false.
 
   !> decay scale of frictional velocity 
   double precision, public                :: mf2_decay_scale(2*^ND)=0.d0
@@ -123,7 +125,7 @@ contains
       particles_eta, mf2_record_electric_field,&
       mf2_4th_order, typedivbfix, source_split_divb, divbdiff,&
       typedivbdiff, type_ct, compactres, divbwave, He_abundance, SI_unit, &
-      Bdip, Bquad, Boct, Busr, clean_initial_divb, B0field, &
+      Bdip, Bquad, Boct, Busr, clean_initial_divb, B0field, mf2_dump_full_vars,&
       boundary_divbfix, boundary_divbfix_skip, mf2_divb_4thorder
 
     do n = 1, size(files)
@@ -305,8 +307,35 @@ contains
 
   subroutine mf2_check_params
     use mod_global_parameters
+    use mod_convert, only: add_convert_method
+    if(convert .or. autoconvert) then
+      if (ANY(convert_type_array=="dat_generic_mpi")) then
+        if(mf2_dump_full_vars) then
+          if(mype .eq. 0) print*, " add conversion method: split -> full "
+          call add_convert_method(convert_vars_splitting, nw, cons_wnames, "new")
+        endif
+      endif
+    endif
 
   end subroutine mf2_check_params
+
+  ! w, wnew conserved, add splitted variables back to wnew
+  function convert_vars_splitting(ixI^L,ixO^L, w, x, nwc) result(wnew)
+    use mod_global_parameters
+    integer, intent(in)             :: ixI^L,ixO^L, nwc
+    double precision, intent(in)    :: w(ixI^S, 1:nw)
+    double precision, intent(in)    :: x(ixI^S,1:ndim)
+    double precision   :: wnew(ixO^S, 1:nwc)
+
+
+    if (B0field) then
+      ! add background magnetic field B0 to B
+      wnew(ixO^S,mag(:))=w(ixO^S,mag(:))+block%B0(ixO^S,:,0)
+    else
+      wnew(ixO^S,mag(:))=w(ixO^S,mag(:))
+    end if
+
+  end function convert_vars_splitting
 
   subroutine mf2_physical_units()
     use mod_global_parameters
@@ -553,11 +582,11 @@ contains
 
 
   !> w[iws]=w[iws]+qdt*S[iws,wCT] where S is the source based on wCT within ixO
-  subroutine mf2_add_source(qdt,ixI^L,ixO^L,wCT,wCTprim,w,x,qsourcesplit,active)
+  subroutine mf2_add_source(qdt,dtfactor,ixI^L,ixO^L,wCT,wCTprim,w,x,qsourcesplit,active)
     use mod_global_parameters
 
     integer, intent(in)             :: ixI^L, ixO^L
-    double precision, intent(in)    :: qdt
+    double precision, intent(in)    :: qdt,dtfactor
     double precision, intent(in)    :: wCT(ixI^S,1:nw),wCTprim(ixI^S,1:nw), x(ixI^S,1:ndim)
     double precision, intent(inout) :: w(ixI^S,1:nw)
     logical, intent(in)             :: qsourcesplit
@@ -1221,21 +1250,29 @@ contains
   end subroutine mf2_get_dt
 
   ! Add geometrical source terms to w
-  subroutine mf2_add_source_geom(qdt,ixI^L,ixO^L,wCT,w,x)
+  subroutine mf2_add_source_geom(qdt,dtfactor,ixI^L,ixO^L,wCT,w,x)
     use mod_global_parameters
     use mod_geometry
 
     integer, intent(in)             :: ixI^L, ixO^L
-    double precision, intent(in)    :: qdt, x(ixI^S,1:ndim)
+    double precision, intent(in)    :: qdt, dtfactor,x(ixI^S,1:ndim)
     double precision, intent(inout) :: wCT(ixI^S,1:nw), w(ixI^S,1:nw)
 
     integer          :: iw,idir
     double precision :: tmp(ixI^S)
+    double precision :: dtarr(ixO^S)
 
     integer :: br_,bphi_
     integer :: mr_,mphi_
 
     double precision   :: vel(ixI^S,1:ndir)
+
+    !TODO optimize
+    if(local_timestep) then
+      dtarr = block%dt(ixO^S) * dtfactor
+    else
+      dtarr = qdt
+    endif  
 
     call  frictional_velocity(wCT,x,ixI^L,ixO^L,vel)
     br_=mag(1); bphi_=mag(1)-1+phi_
@@ -1245,16 +1282,16 @@ contains
     case (cylindrical)
       if(phi_>0) then
         if(.not.stagger_grid) then
-          w(ixO^S,bphi_)=w(ixO^S,bphi_)+qdt/x(ixO^S,1)*&
+          w(ixO^S,bphi_)=w(ixO^S,bphi_)+dtarr/x(ixO^S,1)*&
                    (wCT(ixO^S,bphi_)*vel(ixO^S,mr_) &
                    -wCT(ixO^S,br_)*vel(ixO^S,mphi_))
         end if
       end if
-      if(mf2_glm) w(ixO^S,br_)=w(ixO^S,br_)+qdt*wCT(ixO^S,psi_)/x(ixO^S,1)
+      if(mf2_glm) w(ixO^S,br_)=w(ixO^S,br_)+dtarr*wCT(ixO^S,psi_)/x(ixO^S,1)
     case (spherical)
        ! b1
        if(mf2_glm) then
-         w(ixO^S,mag(1))=w(ixO^S,mag(1))+qdt/x(ixO^S,1)*2.0d0*wCT(ixO^S,psi_)
+         w(ixO^S,mag(1))=w(ixO^S,mag(1))+dtarr/x(ixO^S,1)*2.0d0*wCT(ixO^S,psi_)
        end if
 
        {^NOONED
@@ -1270,7 +1307,7 @@ contains
            tmp(ixO^S)=tmp(ixO^S) &
                 + dcos(x(ixO^S,2))/dsin(x(ixO^S,2))*wCT(ixO^S,psi_)
          end if
-         w(ixO^S,mag(2))=w(ixO^S,mag(2))+qdt*tmp(ixO^S)/x(ixO^S,1)
+         w(ixO^S,mag(2))=w(ixO^S,mag(2))+dtarr*tmp(ixO^S)/x(ixO^S,1)
        end if
        }
 
@@ -1289,7 +1326,7 @@ contains
                    -vel(ixO^S,2)*block%B0(ixO^S,3,0))*dcos(x(ixO^S,2)) &
                    /dsin(x(ixO^S,2)) }
            end if
-           w(ixO^S,mag(3))=w(ixO^S,mag(3))+qdt*tmp(ixO^S)/x(ixO^S,1)
+           w(ixO^S,mag(3))=w(ixO^S,mag(3))+dtarr*tmp(ixO^S)/x(ixO^S,1)
          end if
        end if
     end select

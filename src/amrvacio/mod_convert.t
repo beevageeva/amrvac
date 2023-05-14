@@ -46,8 +46,8 @@ contains
     character(len=name_len)::  wname
     character(len=std_len)::  scanstring
 
-
     ! copied from subroutine getheadernames in calculate_xw
+    !TODO check for errors 
     scanstring=TRIM(adjustl(aux_variable_names))
     space_position=index(scanstring,' ')
     do iw=1,nwc

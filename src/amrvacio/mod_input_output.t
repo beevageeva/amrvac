@@ -184,6 +184,7 @@ contains
     use mod_slice
     use mod_geometry
     use mod_source
+    use mod_convert, only: get_names_from_string
 
     logical          :: fileopen, file_exists
     integer          :: i, j, k, ifile, io_state
@@ -238,7 +239,7 @@ contains
  
     namelist /filelist/ base_filename,restart_from_file, &
          typefilelog,firstprocess,reset_grid,snapshotnext, &
-         convert,convert_type,saveprim,usr_filename,&
+         convert,convert_type,number_convert_types,saveprim,usr_filename,&
          nwauxio,nocartesian, w_write,writelevel,&
          writespshift,length_convert_factor, w_convert_factor, &
          time_convert_factor,level_io,level_io_min, level_io_max, &
@@ -257,7 +258,7 @@ contains
          wall_time_max,final_dt_reduction
 
     namelist /methodlist/ time_stepper,time_integrator, &
-         source_split_usr,typesourcesplit,&
+         source_split_usr,typesourcesplit,local_timestep,&
          dimsplit,typedimsplit,flux_scheme,&
          limiter,gradient_limiter,cada3_radius,&
          loglimit,typeboundspeed, H_correction,&
@@ -401,7 +402,11 @@ contains
     time_init     = 0.d0
     time_max      = bigdouble
     wall_time_max = bigdouble
-    final_dt_reduction=.true.
+    if(local_timestep) then
+      final_dt_reduction=.false.
+    else
+      final_dt_reduction=.true.
+    endif
     final_dt_exit=.false.
     dtmin         = 1.0d-10
     nslices       = 0
@@ -669,7 +674,8 @@ contains
     if (small_density < 0.d0) call mpistop("small_density should be positive.")
     ! Give priority to non-zero small temperature
     if (small_temperature>0.d0) small_pressure=small_density*small_temperature
-
+    allocate(convert_type_array(number_convert_types))
+    convert_type_array =    get_names_from_string(convert_type,number_convert_types)
     if(convert) autoconvert=.false.
 
     where (tsave_log < bigdouble) tsave(:, 1) = tsave_log
