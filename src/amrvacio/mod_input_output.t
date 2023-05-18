@@ -296,6 +296,7 @@ contains
     ! default maximum number of grid blocks in a processor
     max_blocks=4000
 
+
     ! allocate cell size of all levels
     allocate(dx(ndim,nlevelshi))
     {allocate(dg^D(nlevelshi))\}
@@ -1454,18 +1455,19 @@ contains
       nghostcells=nghostcells+1
     end if
 
-    select case (coordinate)
-       {^NOONED
-    case (spherical)
-       xprob^LIM^DE=xprob^LIM^DE*two*dpi;
-       \}
-    case (cylindrical)
-       {
-       if (^D==phi_) then
-          xprob^LIM^D=xprob^LIM^D*two*dpi;
-       end if
-       \}
-    end select
+     !TODO WHY??? 
+!    select case (coordinate)
+!       {^NOONED
+!    case (spherical)
+!       xprob^LIM^DE=xprob^LIM^DE*two*dpi;
+!       \}
+!    case (cylindrical)
+!       {
+!       if (^D==phi_) then
+!          xprob^LIM^D=xprob^LIM^D*two*dpi;
+!       end if
+!       \}
+!    end select
 
     ! full block size including ghostcells
     {ixGhi^D = block_nx^D + 2*nghostcells\}
@@ -1487,6 +1489,7 @@ contains
        write(unitterm,*)'Error: refine_max_level',refine_max_level,'>nlevelshi ',nlevelshi
        call mpistop("Reset nlevelshi and recompile!")
     endif
+
 
     if (any(stretched_dim)) then
        allocate(qstretch(0:nlevelshi,1:ndim),dxfirst(0:nlevelshi,1:ndim),&

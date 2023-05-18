@@ -1391,7 +1391,7 @@ module mod_radiative_cooling
           call cool_semiimplicit(qdt,ixI^L,ixO^L,wCT,w,x,fl)
         case ('implicit')   
           call cool_implicit(qdt,ixI^L,ixO^L,wCT,w,x,fl)   
-        case ('exact')   
+        case ('exact')  
           call cool_exact(qdt,ixI^L,ixO^L,wCT,wCTprim,w,x,fl)
         case default
           call mpistop("This cooling method is unknown")
@@ -1842,8 +1842,14 @@ module mod_radiative_cooling
 
       call fl%get_rho(wCT,x,ixI^L,ixO^L,rho)
       call fl%get_var_Rfactor(wCT,x,ixI^L,ixO^L,Rfactor)
-      Te(ixO^S)=wCTprim(ixO^S,iw_e)/(rho(ixO^S)*Rfactor(ixO^S))
+     
+      !TODO replaced  
+      !Te(ixO^S)=wCTprim(ixO^S,iw_e)/(rho(ixO^S)*Rfactor(ixO^S))
+      !BY:
+      call fl%get_pthermal(wCT,x,ixI^L,ixO^L,Te)
+      Te(ixO^S)=Te(ixO^S)/(rho(ixO^S)*Rfactor(ixO^S))
 
+      !because it breaks the splitting, also uses iw_e global var
       call fl%get_pthermal(w,x,ixI^L,ixO^L,pnew)
       call fl%get_rho(w,x,ixI^L,ixO^L,rhonew)
 

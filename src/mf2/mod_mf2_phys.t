@@ -30,6 +30,8 @@ module mod_mf2_phys
 
   !> MHD fourth order
   logical, public, protected              :: mf2_4th_order = .false.
+  logical, public, protected              :: B0field_potential = .true.
+  logical, public, protected              :: B0field_forcefree = .false.
 
   !> set to true if need to record electric field on cell edges
   logical, public, protected              :: mf2_record_electric_field = .false.
@@ -125,7 +127,7 @@ contains
       particles_eta, mf2_record_electric_field,&
       mf2_4th_order, typedivbfix, source_split_divb, divbdiff,&
       typedivbdiff, type_ct, compactres, divbwave, He_abundance, SI_unit, &
-      Bdip, Bquad, Boct, Busr, clean_initial_divb, B0field, mf2_dump_full_vars,&
+      Bdip, Bquad, Boct, Busr, clean_initial_divb, B0field, B0field_potential, B0field_forcefree, mf2_dump_full_vars,&
       boundary_divbfix, boundary_divbfix_skip, mf2_divb_4thorder
 
     do n = 1, size(files)
@@ -1199,9 +1201,9 @@ contains
     !else
       call curlvector(w(ixI^S,mag(1:ndir)),ixI^L,ixO^L,current,idirmin,idirmin0,ndir)
     !end if
-    !TODO add this if not potential
-    !if(B0field) current(ixO^S,idirmin0:3)=current(ixO^S,idirmin0:3)+&
-    !    block%J0(ixO^S,idirmin0:3)
+    !TODO hange B0field_forcefree
+    if(B0field .and. .not. B0field_potential) current(ixO^S,idirmin0:3)=current(ixO^S,idirmin0:3)+&
+        block%J0(ixO^S,idirmin0:3)
 
   end subroutine get_current
 
