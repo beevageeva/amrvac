@@ -184,8 +184,9 @@ subroutine setdt()
       double precision, intent(inout) :: w(ixI^S,1:nw), dtnew, cmax_mype, a2max_mype(ndim)
 
       integer :: idims
+      integer :: hxO^L
       double precision :: courantmax, dxinv(1:ndim), courantmaxtot, courantmaxtots
-      double precision :: cmax(ixI^S), cmaxtot(ixO^S)
+      double precision :: cmax(ixI^S), cmaxtot(ixI^S)
       double precision :: a2max(ndim),tco_local,Tmax_local
 
       dtnew=bigdouble
@@ -193,6 +194,11 @@ subroutine setdt()
       courantmaxtot=zero
       courantmaxtots=zero
 
+      ! local timestep dt has to be calculated in the 
+      ! extended region because of the calculation from the
+      ! div fluxes in mod_finite_volume
+      hxOmin^D=ixOmin^D-1; 
+      hxOmax^D=ixOmax^D; 
 
       if(need_global_a2max) then
         call phys_get_a2max(w,x,ixI^L,ixO^L,a2max)
@@ -230,27 +236,27 @@ subroutine setdt()
 
       select case (type_courant)
       case (type_maxsum)
-        cmaxtot(ixO^S)=zero
+        cmaxtot(hxO^S)=zero
         if(slab_uniform) then
           ^D&dxinv(^D)=one/dx^D;
           do idims=1,ndim
-            call phys_get_cmax(w,x,ixI^L,ixO^L,idims,cmax)
+            call phys_get_cmax(w,x,ixI^L,hxO^L,idims,cmax)
             if(need_global_cmax) cmax_mype = max(cmax_mype,maxval(cmax(ixO^S)))
-            cmaxtot(ixO^S)=cmaxtot(ixO^S)+cmax(ixO^S)*dxinv(idims)
+            cmaxtot(hxO^S)=cmaxtot(hxO^S)+cmax(hxO^S)*dxinv(idims)
           end do
         else
           do idims=1,ndim
-            call phys_get_cmax(w,x,ixI^L,ixO^L,idims,cmax)
+            call phys_get_cmax(w,x,ixI^L,hxO^L,idims,cmax)
             if(need_global_cmax) cmax_mype = max(cmax_mype,maxval(cmax(ixO^S)))
-            cmaxtot(ixO^S)=cmaxtot(ixO^S)+cmax(ixO^S)/block%ds(ixO^S,idims)
+            cmaxtot(hxO^S)=cmaxtot(hxO^S)+cmax(hxO^S)/block%ds(hxO^S,idims)
           end do
         end if
         ! courantmaxtots='max(summed c/dx)'
-        if(local_timestep) then
-          block%dt(ixO^S) = courantpar/cmaxtot(ixO^S)
-        endif
         courantmaxtots=max(courantmaxtots,maxval(cmaxtot(ixO^S)))
         if (courantmaxtots>smalldouble) dtnew=min(dtnew,courantpar/courantmaxtots)
+        if(local_timestep) then
+          block%dt(hxO^S) = courantpar/cmaxtot(hxO^S)
+        endif
 
       case (type_summax)
         if(local_timestep) then

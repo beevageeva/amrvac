@@ -11,10 +11,7 @@ character(len=std_len) :: convert_type_elem
 integer :: i
 !-----------------------------------------------------------------------------
 
-if(mype==0.and.level_io>0) write(unitterm,*)'reset tree to fixed level=',level_io
-if(level_io>0 .or. level_io_min.ne.1 .or. level_io_max.ne.nlevelshi) then 
-   call resettree_convert
-else if(.not. phys_req_diagonal) then
+if(.not. phys_req_diagonal) then
    call getbc(global_time,0.d0,ps,iwstart,nwgc)
 end if
 

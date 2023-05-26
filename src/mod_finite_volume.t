@@ -229,7 +229,6 @@ contains
 
     end do ! Next idims
     b0i=0
-
     if(stagger_grid) call phys_update_faces(ixI^L,ixO^L,qt,qdt,wprim,fC,fE,sCT,snew,vcts)
     if(slab_uniform) then
       dxinv=-qdt/dxs
