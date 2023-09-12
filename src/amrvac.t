@@ -60,7 +60,11 @@ program amrvac
      end if
 
      ! modify initial condition
-     if (firstprocess) call modify_IC
+     if (firstprocess) then
+       ! update ghost cells for all need-boundary variables before modification
+       call getbc(global_time,0.d0,ps,1,nwflux+nwaux)
+       call modify_IC
+     end if
 
      ! select active grids
      call selectgrids
@@ -174,7 +178,8 @@ contains
     use mod_advance, only: advance, process, process_advanced
     use mod_forest, only: nleafs_active
     use mod_global_parameters
-    use mod_input_output, only: saveamrfile, save_now
+    use mod_input_output, only: saveamrfile
+    use mod_input_output_helper, only: save_now
     use mod_ghostcells_update
 
     integer :: level, ifile, fixcount, ncells_block, igrid, iigrid

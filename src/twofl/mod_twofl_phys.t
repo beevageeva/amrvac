@@ -40,7 +40,7 @@ module mod_twofl_phys
 
   !> Whether radiative cooling is added
   logical, public, protected              :: twofl_radiative_cooling_c = .false.
-  type(rc_fluid), allocatable :: rc_fl_c
+  type(rc_fluid), public, allocatable :: rc_fl_c
 
   !> Whether viscosity is added
   logical, public, protected              :: twofl_viscosity = .false.
@@ -234,9 +234,12 @@ module mod_twofl_phys
   public :: twofl_get_v_n_idim
   public :: get_current
   public :: twofl_get_pthermal_c
+  public :: twofl_get_pthermal_n
   public :: twofl_face_to_center
   public :: get_normalized_divb
   public :: b_from_vector_potential
+  public :: usr_mask_gamma_ion_rec
+
   {^NOONED
   public :: twofl_clean_divb_multigrid
   }
@@ -244,17 +247,26 @@ module mod_twofl_phys
   abstract interface
 
     subroutine implicit_mult_factor_subroutine(ixI^L, ixO^L, step_dt, JJ, res)
-    integer, intent(in)                :: ixI^L, ixO^L
-    double precision, intent(in) :: step_dt
-    double precision, intent(in) :: JJ(ixI^S)
-    double precision, intent(out) :: res(ixI^S)
+      integer, intent(in)                :: ixI^L, ixO^L
+      double precision, intent(in) :: step_dt
+      double precision, intent(in) :: JJ(ixI^S)
+      double precision, intent(out) :: res(ixI^S)
 
-  end subroutine implicit_mult_factor_subroutine
+    end subroutine implicit_mult_factor_subroutine
+
+    subroutine mask_subroutine(ixI^L,ixO^L,w,x,res1, res2)
+      use mod_global_parameters
+      integer, intent(in) :: ixI^L, ixO^L
+      double precision, intent(in) :: x(ixI^S,1:ndim)
+      double precision, intent(in) :: w(ixI^S,1:nw)
+      double precision, intent(inout) :: res1(ixI^S),res2(ixI^S)
+    end subroutine mask_subroutine
 
   end interface
 
    procedure (implicit_mult_factor_subroutine), pointer :: calc_mult_factor => null()
    integer, protected ::  twofl_implicit_calc_mult_method = 1
+  procedure(mask_subroutine), pointer  :: usr_mask_gamma_ion_rec => null()
 
 contains
 
@@ -553,7 +565,7 @@ contains
     nwgc=nwflux
 
     ! determine number of stagger variables
-    if(stagger_grid) nws=ndim
+    nws=ndim
 
     ! Check whether custom flux types have been defined
     if (.not. allocated(flux_type)) then
@@ -6689,8 +6701,8 @@ contains
     !number electrons rho_c = n_e * MH, in normalized units MH=1 and n = rho
     rho(ixO^S) = rho(ixO^S) * unit_numberdensity  
     if(.not. SI_unit) then
-      !1/cm^3 = 1e9/m^3
-      rho(ixO^S) = rho(ixO^S) * 1d9  
+      !1/cm^3 = 1e6/m^3
+      rho(ixO^S) = rho(ixO^S) * 1d6
     endif
     gamma_rec(ixO^S) = rho(ixO^S) /sqrt(tmp(ixO^S)) * 2.6e-19
     gamma_ion(ixO^S) = ((rho(ixO^S) * A) /(XX + Eion/tmp(ixO^S))) * ((Eion/tmp(ixO^S))**K) * exp(-Eion/tmp(ixO^S))
@@ -6699,7 +6711,12 @@ contains
     gamma_rec(ixO^S) = gamma_rec(ixO^S) * unit_time  
     gamma_ion(ixO^S) = gamma_ion(ixO^S) * unit_time  
 
+    if (associated(usr_mask_gamma_ion_rec)) then
+      call usr_mask_gamma_ion_rec(ixI^L,ixO^L,w,x,gamma_ion, gamma_rec)
+    end if
   end subroutine get_gamma_ion_rec
+
+
 
   subroutine get_alpha_coll(ixI^L, ixO^L, w, x, alpha)
     use mod_global_parameters

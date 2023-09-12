@@ -110,7 +110,7 @@ mod_constrained_transport.o: mod_fix_conserve.mod
 mod_constrained_transport.o: mod_ghostcells_update.mod
 mod_constrained_transport.o: mod_limiter.mod
 mod_constrained_transport.o: mod_physics.mod
-mod_convert.o: mod_input_output.mod
+mod_convert.o: mod_input_output_helper.mod
 mod_dust.o: mod_geometry.mod
 mod_dust.o: mod_physics.mod
 mod_finite_difference.o: mod_finite_volume.mod
@@ -171,7 +171,9 @@ mod_initialize.o: mod_input_output.mod
 mod_initialize.o: mod_physics.mod
 mod_initialize.o: mod_trac.mod
 mod_input_output.o: mod_collapse.mod
+mod_input_output.o: mod_convert.mod
 mod_input_output.o: mod_geometry.mod
+mod_input_output.o: mod_input_output_helper.mod
 mod_input_output.o: mod_limiter.mod
 mod_input_output.o: mod_particles.mod
 mod_input_output.o: mod_physics.mod
@@ -179,6 +181,8 @@ mod_input_output.o: mod_slice.mod
 mod_input_output.o: mod_small_values.mod
 mod_input_output.o: mod_source.mod
 mod_input_output.o: mod_timing.mod
+mod_input_output_helper.o: mod_physics.mod
+mod_input_output_helper.o: mod_slice.mod
 mod_lfff.o: mod_geometry.mod
 mod_lfff.o: mod_multigrid_coupling.mod
 mod_limiter.o: mod_mp5.mod
@@ -197,6 +201,7 @@ mod_mf.o: mod_mf_phys.mod
 mod_mf2.o: mod_amrvac.mod
 mod_mf2.o: mod_mf2_phys.mod
 mod_mf2_phys.o: mod_constrained_transport.mod
+mod_mf2_phys.o: mod_convert.mod
 mod_mf2_phys.o: mod_geometry.mod
 mod_mf2_phys.o: mod_multigrid_coupling.mod
 mod_mf2_phys.o: mod_particles.mod
@@ -323,6 +328,13 @@ mod_solar_atmosphere.o: mod_physics.mod
 mod_source.o: mod_ghostcells_update.mod
 mod_source.o: mod_physics.mod
 mod_source.o: mod_supertimestepping.mod
+mod_srhd.o: mod_amrvac.mod
+mod_srhd.o: mod_srhd_phys.mod
+mod_srhd_phys.o: mod_con2prim_vars.mod
+mod_srhd_phys.o: mod_geometry.mod
+mod_srhd_phys.o: mod_particles.mod
+mod_srhd_phys.o: mod_physics.mod
+mod_srhd_phys.o: mod_small_values.mod
 mod_supertimestepping.o: mod_fix_conserve.mod
 mod_supertimestepping.o: mod_geometry.mod
 mod_supertimestepping.o: mod_ghostcells_update.mod
@@ -364,6 +376,8 @@ mod_twofl_roe.o: mod_twofl_phys.mod
 mod_variables.o: mod_basic_types.mod
 mod_viscosity.o: mod_geometry.mod
 mod_weno.o: mod_physics.mod
+pointgrav.o: mod_geometry.mod
+raytracing.o: mod_raytracing.mod
 refine.o: mod_amr_fct.mod
 refine.o: mod_physics.mod
 set_B0.o: mod_geometry.mod

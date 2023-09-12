@@ -1145,11 +1145,13 @@ contains
   end subroutine get_divb
 
   !> get dimensionless div B = |divB| * volume / area / |B|
-  subroutine get_normalized_divb(w,ixI^L,ixO^L,divb)
+  subroutine get_normalized_divb(w,ixI^L,ixO^L,divb, addB0Field)
+    use mod_geometry, only: divvector, divvectorS
 
     use mod_global_parameters
 
     integer, intent(in)                :: ixI^L, ixO^L
+    logical, intent(in)                :: addB0Field 
     double precision, intent(in)       :: w(ixI^S,1:nw)
     double precision                   :: divb(ixI^S), dsurface(ixI^S)
 
@@ -1157,6 +1159,18 @@ contains
     integer :: ixA^L,idims
 
     call get_divb(w,ixI^L,ixO^L,divb)
+
+    if(addB0Field .and. B0field) then  
+      ! reuse dsurface
+      select case(typediv)
+      case("central")
+        call divvector(block%B0(ixI^S,1:ndir,0),ixI^L,ixO^L,dsurface,.false.)
+      case("limited")
+        call divvectorS(block%B0(ixI^S,1:ndir,0),ixI^L,ixO^L,dsurface)
+      end select
+      divb(ixO^S)=divb(ixO^S)+dsurface(ixO^S)
+      ! end reuse dsurface
+    endif
     invB(ixO^S)=sqrt(mf2_mag_en_all(w,ixI^L,ixO^L))
     where(invB(ixO^S)/=0.d0)
       invB(ixO^S)=1.d0/invB(ixO^S)
@@ -2495,8 +2509,8 @@ contains
   subroutine record_force_free_metrics()
     use mod_global_parameters
 
-    double precision :: sum_jbb_ipe, sum_j_ipe, sum_l_ipe, f_i_ipe, volume_pe
-    double precision :: sum_jbb, sum_j, sum_l, f_i, volume, cw_sin_theta
+    double precision :: sum_jbb_ipe, sum_j_ipe, sum_l_ipe, f_i_ipe, sum_fi_tot_ipe, volume_pe
+    double precision :: sum_jbb, sum_j, sum_l, f_i, sum_fi_tot, volume, cw_sin_theta
     integer :: iigrid, igrid, ix^D
     integer :: amode, istatus(MPI_STATUS_SIZE)
     integer, save :: fhmf
@@ -2509,6 +2523,7 @@ contains
     sum_j_ipe = 0.d0
     sum_l_ipe = 0.d0
     f_i_ipe = 0.d0
+    sum_fi_tot_ipe = 0.d0
     volume_pe=0.d0
     do iigrid=1,igridstail; igrid=igrids(iigrid);
       block=>ps(igrid)
@@ -2520,14 +2535,18 @@ contains
         ps(igrid)%x,2,patchwi)
       f_i_ipe=f_i_ipe+integral_grid_mf(ixG^LL,ixM^LL,ps(igrid)%w,&
         ps(igrid)%x,3,patchwi)
-      sum_l_ipe   = sum_l_ipe+integral_grid_mf(ixG^LL,ixM^LL,ps(igrid)%w,&
+      sum_fi_tot_ipe=sum_fi_tot_ipe+integral_grid_mf(ixG^LL,ixM^LL,ps(igrid)%w,&
         ps(igrid)%x,4,patchwi)
+      sum_l_ipe   = sum_l_ipe+integral_grid_mf(ixG^LL,ixM^LL,ps(igrid)%w,&
+        ps(igrid)%x,5,patchwi)
     end do
     call MPI_REDUCE(sum_jbb_ipe,sum_jbb,1,MPI_DOUBLE_PRECISION,&
        MPI_SUM,0,icomm,ierrmpi)
     call MPI_REDUCE(sum_j_ipe,sum_j,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,&
        icomm,ierrmpi)
     call MPI_REDUCE(f_i_ipe,f_i,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,&
+       icomm,ierrmpi)
+    call MPI_REDUCE(sum_fi_tot_ipe,sum_fi_tot,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,&
        icomm,ierrmpi)
     call MPI_REDUCE(sum_l_ipe,sum_l,1,MPI_DOUBLE_PRECISION,MPI_SUM,0,&
        icomm,ierrmpi)
@@ -2541,6 +2560,7 @@ contains
       ! volume-weighted average of the absolute value of the fractional
       ! magnetic flux change
       f_i = f_i/volume
+      sum_fi_tot = sum_fi_tot/volume
       sum_j=sum_j/volume
       sum_l=sum_l/volume
       if(.not.logmfopened) then
@@ -2557,7 +2577,7 @@ contains
         amode=ior(amode,MPI_MODE_APPEND)
         call MPI_FILE_OPEN(MPI_COMM_SELF,filename,amode,MPI_INFO_NULL,fhmf,ierrmpi)
         logmfopened=.true.
-        filehead="  it,time,CW_sin_theta,current,Lorenz_force,f_i"
+        filehead="  it,time,CW_sin_theta,current,Lorenz_force,f_i,fi_tot"
         if (it == 0) then
           call MPI_FILE_WRITE(fhmf,filehead,len_trim(filehead), &
                               MPI_CHARACTER,istatus,ierrmpi)
@@ -2575,7 +2595,9 @@ contains
       line=trim(line)//trim(datastr)
       write(datastr,'(es13.6,a)') sum_l,','
       line=trim(line)//trim(datastr)
-      write(datastr,'(es13.6)') f_i
+      write(datastr,'(es13.6,a)') f_i,','
+      line=trim(line)//trim(datastr)
+      write(datastr,'(es13.6,a)') sum_fi_tot,','
       line=trim(line)//trim(datastr)//new_line('A')
       call MPI_FILE_WRITE(fhmf,line,len_trim(line),MPI_CHARACTER,istatus,ierrmpi)
       if(.not.time_advance) then
@@ -2634,6 +2656,9 @@ contains
      case(1)
       ! Sum(|JxB|/|B|*dvolume)
       bvec(ixO^S,:)=w(ixO^S,mag(:))
+      if(B0field) then
+        bvec(ixO^S,:) = bvec(ixO^S,:) + block%B0(ixO^S,:,0)
+      endif
       call get_current(w,ixI^L,ixO^L,idirmin,current)
       ! calculate Lorentz force
       qvec(ixO^S,1:ndir)=zero
@@ -2663,15 +2688,25 @@ contains
                            block%dvolume(ix^D)
       {end do\}
      case(3)
-      ! f_i solenoidal property of B: (dvolume |div B|)/(dsurface |B|)
+      ! f_i solenoidal property of B: (dvolume |div B|)/(dsurface |B+B0|)
       ! Sum(f_i*dvolume)
-      call get_normalized_divb(w,ixI^L,ixO^L,tmp)
+      call get_normalized_divb(w,ixI^L,ixO^L,tmp,.false.)
       {do ix^DB=ixOmin^DB,ixOmax^DB\}
          if(patchwi(ix^D)) integral_grid_mf=integral_grid_mf+tmp(ix^D)*block%dvolume(ix^D)
       {end do\}
      case(4)
+      ! f_i solenoidal property of B+B0: (dvolume |div (B+B0)|)/(dsurface |B+B0|)
+      ! Sum(f_i*dvolume)
+      call get_normalized_divb(w,ixI^L,ixO^L,tmp,.true.)
+      {do ix^DB=ixOmin^DB,ixOmax^DB\}
+         if(patchwi(ix^D)) integral_grid_mf=integral_grid_mf+tmp(ix^D)*block%dvolume(ix^D)
+      {end do\}
+     case(5)
       ! Sum(|JxB|*dvolume)
       bvec(ixO^S,:)=w(ixO^S,mag(:))
+      if(B0field) then
+        bvec(ixO^S,:) = bvec(ixO^S,:) + block%B0(ixO^S,:,0)
+      endif
       call get_current(w,ixI^L,ixO^L,idirmin,current)
       ! calculate Lorentz force
       qvec(ixO^S,1:ndir)=zero

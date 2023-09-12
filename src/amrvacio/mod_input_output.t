@@ -4,8 +4,6 @@ module mod_input_output
   implicit none
   public
 
-  !> Version number of the .dat file output
-  integer, parameter :: version_number = 5
 
   !> List of compatible versions
   integer, parameter :: compatible_versions(3) = [3, 4, 5]
@@ -19,8 +17,9 @@ module mod_input_output
   !> coefficient for rk2_alfa
   double precision, private :: rk2_alfa
 
-  !> whether a manually inserted snapshot is saved
-  logical :: save_now
+
+  !> whether staggered field is in dat
+  logical, private :: stagger_mark_dat=.false.
 
   ! Formats used in output
   character(len=*), parameter :: fmt_r  = 'es16.8' ! Default precision
@@ -28,11 +27,7 @@ module mod_input_output
   character(len=*), parameter :: fmt_i  = 'i8'     ! Integer format
 
   ! public methods
-  public :: count_ix
-  public :: create_output_file
-  public :: snapshot_write_header, snapshot_write_header1
-  public :: block_shape_io
-  
+  public :: snapshot_write_header  
 
 contains
 
@@ -184,7 +179,7 @@ contains
     use mod_slice
     use mod_geometry
     use mod_source
-    use mod_convert, only: get_names_from_string
+    use mod_input_output_helper, only: get_names_from_string
 
     logical          :: fileopen, file_exists
     integer          :: i, j, k, ifile, io_state
@@ -286,16 +281,17 @@ contains
     namelist /paramlist/  courantpar, dtpar, dtdiffpar, &
          typecourant, slowsteps
 
-    namelist /emissionlist/ filename_euv,wavelength,resolution_euv,&
-          filename_sxr,emin_sxr,emax_sxr,resolution_sxr,&
-          LOS_theta,LOS_phi,image_rotate,x_origin,big_image,spectrum_wl,&
-          location_slit,direction_slit,filename_spectrum,&
-          resolution_spectrum,spectrum_window_min,spectrum_window_max,&
-          instrument_resolution_factor,activate_unit_arcsec
+    namelist /emissionlist/ filename_euv,wavelength,&
+          filename_sxr,emin_sxr,emax_sxr,&
+          LOS_theta,LOS_phi,image_rotate,x_origin,big_image,&
+          spectrum_wl,location_slit,filename_spectrum,&
+          spectrum_window_min,spectrum_window_max,&
+          instrument_resolution_factor,activate_unit_arcsec,&
+          filename_whitelight,whitelight_instrument,R_occultor,R_opt_thick,&
+          dat_resolution,direction_slit
 
     ! default maximum number of grid blocks in a processor
     max_blocks=4000
-
 
     ! allocate cell size of all levels
     allocate(dx(ndim,nlevelshi))
@@ -503,11 +499,13 @@ contains
     x_origin = 0.d0
     big_image = .false.
     location_slit = 0.d0
-    resolution_euv = 'instrument'
-    resolution_sxr = 'instrument'
-    resolution_spectrum = 'instrument'
+    direction_slit = -1
     instrument_resolution_factor=1.d0
     activate_unit_arcsec=.true.
+    whitelight_instrument='LASCO/C2'
+    R_occultor=-1.d0
+    R_opt_thick=1.d0
+    dat_resolution=.false.
 
     allocate(flux_scheme(nlevelshi),typepred1(nlevelshi),flux_method(nlevelshi))
     allocate(limiter(nlevelshi),gradient_limiter(nlevelshi))
@@ -1456,18 +1454,23 @@ contains
     end if
 
      !TODO WHY??? 
-!    select case (coordinate)
-!       {^NOONED
-!    case (spherical)
-!       xprob^LIM^DE=xprob^LIM^DE*two*dpi;
-!       \}
-!    case (cylindrical)
-!       {
-!       if (^D==phi_) then
-!          xprob^LIM^D=xprob^LIM^D*two*dpi;
-!       end if
-!       \}
-!    end select
+
+     if(use_coord_angle_fraction_2pi) then 
+      select case (coordinate)
+         {^NOONED
+      case (spherical)
+         xprob^LIM^DE=xprob^LIM^DE*two*dpi;
+         \}
+      case (cylindrical)
+         {
+         if (^D==phi_) then
+            xprob^LIM^D=xprob^LIM^D*two*dpi;
+         end if
+         \}
+      end select
+    else if (mype .eq. 0) then
+      print*, "use_coord_angle_fraction_2pi explicitly set to FALSE"  
+    endif
 
     ! full block size including ghostcells
     {ixGhi^D = block_nx^D + 2*nghostcells\}
@@ -1489,7 +1492,6 @@ contains
        write(unitterm,*)'Error: refine_max_level',refine_max_level,'>nlevelshi ',nlevelshi
        call mpistop("Reset nlevelshi and recompile!")
     endif
-
 
     if (any(stretched_dim)) then
        allocate(qstretch(0:nlevelshi,1:ndim),dxfirst(0:nlevelshi,1:ndim),&
@@ -1772,41 +1774,6 @@ contains
 
   end subroutine saveamrfile
 
-  !> Standard method for creating a new output file
-  subroutine create_output_file(fh, ix, extension, suffix)
-    use mod_global_parameters
-    integer, intent(out)         :: fh !< File handle
-    integer, intent(in)          :: ix !< Index of file
-    character(len=*), intent(in) :: extension !< Extension of file
-    character(len=*), intent(in), optional :: suffix !< Optional suffix
-    character(len=std_len)       :: filename
-    integer :: amode
-
-    if (ix >= 10000) then
-      call mpistop("Number of output files is limited to 10000 (0...9999)")
-    end if
-
-    if (present(suffix)) then
-       write(filename,"(a,a,i4.4,a)") trim(base_filename), &
-            trim(suffix), ix, extension
-    else
-       write(filename,"(a,i4.4,a)") trim(base_filename), ix, extension
-    end if
-
-    ! MPI cannot easily replace existing files
-    open(unit=unitsnapshot,file=filename,status='replace')
-    close(unitsnapshot, status='delete')
-
-    amode = ior(MPI_MODE_CREATE, MPI_MODE_WRONLY)
-    call MPI_FILE_OPEN(MPI_COMM_SELF,filename,amode, &
-         MPI_INFO_NULL, fh, ierrmpi)
-
-    if (ierrmpi /= 0) then
-      print *, "Error, cannot create file ", trim(filename)
-      call mpistop("Fatal error")
-    end if
-
-  end subroutine create_output_file
 
   ! Check if a snapshot exists
   logical function snapshot_exists(ix)
@@ -1828,85 +1795,6 @@ contains
   end function get_snapshot_index
 
 
-  !> Write header for a snapshot, generalize cons_wnames and nw
-  !>
-  !> If you edit the header, don't forget to update: snapshot_write_header(),
-  !> snapshot_read_header(), doc/fileformat.md, tools/python/dat_reader.py
-  subroutine snapshot_write_header1(fh, offset_tree, offset_block, dataset_names, nw_vars)
-    use mod_forest
-    use mod_physics
-    use mod_global_parameters
-    use mod_slice, only: slicenext
-    integer, intent(in)                       :: fh           !< File handle
-    integer(kind=MPI_OFFSET_KIND), intent(in) :: offset_tree  !< Offset of tree info
-    integer(kind=MPI_OFFSET_KIND), intent(in) :: offset_block !< Offset of block data
-    character(len=*), intent(in) :: dataset_names(:)
-    integer, intent(in) :: nw_vars
-    integer, dimension(MPI_STATUS_SIZE)       :: st
-    integer                                   :: iw, er
-
-    character(len=name_len) :: dname
-
-    call MPI_FILE_WRITE(fh, version_number, 1, MPI_INTEGER, st, er)
-    call MPI_FILE_WRITE(fh, int(offset_tree), 1, MPI_INTEGER, st, er)
-    call MPI_FILE_WRITE(fh, int(offset_block), 1, MPI_INTEGER, st, er)
-    call MPI_FILE_WRITE(fh, nw_vars, 1, MPI_INTEGER, st, er)
-    call MPI_FILE_WRITE(fh, ndir, 1, MPI_INTEGER, st, er)
-    call MPI_FILE_WRITE(fh, ndim, 1, MPI_INTEGER, st, er)
-    call MPI_FILE_WRITE(fh, levmax, 1, MPI_INTEGER, st, er)
-    call MPI_FILE_WRITE(fh, nleafs, 1, MPI_INTEGER, st, er)
-    call MPI_FILE_WRITE(fh, nparents, 1, MPI_INTEGER, st, er)
-    call MPI_FILE_WRITE(fh, it, 1, MPI_INTEGER, st, er)
-    ! Note: It is nice when this double has an even number of 4 byte
-    ! integers before it (for alignment)
-    call MPI_FILE_WRITE(fh, global_time, 1, MPI_DOUBLE_PRECISION, st, er)
-
-    call MPI_FILE_WRITE(fh, [ xprobmin^D ], ndim, &
-         MPI_DOUBLE_PRECISION, st, er)
-    call MPI_FILE_WRITE(fh, [ xprobmax^D ], ndim, &
-         MPI_DOUBLE_PRECISION, st, er)
-    call MPI_FILE_WRITE(fh, [ domain_nx^D ], ndim, &
-         MPI_INTEGER, st, er)
-    call MPI_FILE_WRITE(fh, [ block_nx^D ], ndim, &
-         MPI_INTEGER, st, er)
-
-    ! Periodicity (assume all variables are periodic if one is)
-    call MPI_FILE_WRITE(fh, periodB, ndim, MPI_LOGICAL, st, er)
-
-    ! Geometry
-    call MPI_FILE_WRITE(fh, geometry_name(1:name_len), &
-         name_len, MPI_CHARACTER, st, er)
-
-    ! Write stagger grid mark
-    call MPI_FILE_WRITE(fh, stagger_grid, 1, MPI_LOGICAL, st, er)
-
-    do iw = 1, nw_vars
-      ! using directly trim(adjustl((dataset_names(iw)))) in MPI_FILE_WRITE call 
-      ! does not work, there will be trailing characters
-      dname = trim(adjustl((dataset_names(iw))))
-      call MPI_FILE_WRITE(fh, dname, name_len, MPI_CHARACTER, st, er)
-    end do
-
-    ! Physics related information
-    call MPI_FILE_WRITE(fh, physics_type, name_len, MPI_CHARACTER, st, er)
-
-    ! Format:
-    ! integer :: n_par
-    ! double precision :: values(n_par)
-    ! character(n_par * name_len) :: names
-    call phys_write_info(fh)
-
-    ! Write snapshotnext etc., which is useful for restarting.
-    ! Note we add one, since snapshotnext is updated *after* this procedure
-    if(pass_wall_time.or.save_now) then
-      call MPI_FILE_WRITE(fh, snapshotnext, 1, MPI_INTEGER, st, er)
-    else
-      call MPI_FILE_WRITE(fh, snapshotnext+1, 1, MPI_INTEGER, st, er)
-    end if
-    call MPI_FILE_WRITE(fh, slicenext, 1, MPI_INTEGER, st, er)
-    call MPI_FILE_WRITE(fh, collapsenext, 1, MPI_INTEGER, st, er)
-
-  end subroutine snapshot_write_header1
 
   !> Write header for a snapshot
   !>
@@ -1917,6 +1805,7 @@ contains
     use mod_physics
     use mod_global_parameters
     use mod_slice, only: slicenext
+    use mod_input_output_helper, only: snapshot_write_header1
     integer, intent(in)                       :: fh           !< File handle
     integer(kind=MPI_OFFSET_KIND), intent(in) :: offset_tree  !< Offset of tree info
     integer(kind=MPI_OFFSET_KIND), intent(in) :: offset_block !< Offset of block data
@@ -1943,7 +1832,7 @@ contains
     double precision, allocatable         :: params(:)
     character(len=name_len)               :: phys_name, geom_name
     integer                               :: er, n_par, tmp_int
-    logical                               :: stagger_mark_dat, periodic(ndim)
+    logical                               :: periodic(ndim)
 
     ! Version number
     call MPI_FILE_READ(fh, version, 1, MPI_INTEGER, st, er)
@@ -2047,8 +1936,8 @@ contains
 
       call MPI_FILE_READ(fh, stagger_mark_dat, 1, MPI_LOGICAL, st, er)
       if (stagger_grid .and. .not. stagger_mark_dat .or. .not.stagger_grid.and.stagger_mark_dat) then
-        write(*,*) "Error: stagger grid flag differs from restart data:", stagger_mark_dat
-        call mpistop("change parameter to use stagger grid")
+        write(*,*) "Warning: stagger grid flag differs from restart data:", stagger_mark_dat
+        !call mpistop("change parameter to use stagger grid")
       end if
     end if
 
@@ -2098,51 +1987,13 @@ contains
 
   end subroutine snapshot_read_header
 
-  !> Compute number of elements in index range
-  pure integer function count_ix(ixO^L)
-    integer, intent(in) :: ixO^L
 
-    count_ix = product([ ixOmax^D ] - [ ixOmin^D ] + 1)
-  end function count_ix
-
-  !> Determine the shape of a block for output (whether to include ghost cells,
-  !> and on which sides)
-  subroutine block_shape_io(igrid, n_ghost, ixO^L, n_values)
-    use mod_global_parameters
-
-    integer, intent(in) :: igrid
-    !> nghost(1:ndim) contains the number of ghost cells on the block's minimum
-    !> boundaries, and nghost(ndim+1:2*ndim) on the block's maximum boundaries
-    integer, intent(out) :: n_ghost(2*ndim)
-    !> Index range on output block
-    integer, intent(out) :: ixO^L
-    !> Number of cells/values in output
-    integer, intent(out) :: n_values
-
-    integer            :: idim
-
-    n_ghost(:) = 0
-
-    if(save_physical_boundary) then
-      do idim=1,ndim
-        ! Include ghost cells on lower boundary
-        if(ps(igrid)%is_physical_boundary(2*idim-1)) n_ghost(idim)=nghostcells
-        ! Include ghost cells on upper boundary
-        if(ps(igrid)%is_physical_boundary(2*idim)) n_ghost(ndim+idim)=nghostcells
-      end do
-    end if
-
-    {ixOmin^D = ixMlo^D - n_ghost(^D)\}
-    {ixOmax^D = ixMhi^D + n_ghost(ndim+^D)\}
-
-    n_values = count_ix(ixO^L) * nw
-
-  end subroutine block_shape_io
 
   subroutine write_snapshot
     use mod_forest
     use mod_global_parameters
     use mod_physics
+    use mod_input_output_helper, only: count_ix,block_shape_io,create_output_file
 
     integer                       :: file_handle, igrid, Morton_no, iwrite
     integer                       :: ipe, ix_buffer(2*ndim+1), n_values
@@ -2313,6 +2164,7 @@ contains
   !> file version, it will automatically try the 'old' reader.
   subroutine read_snapshot
     use mod_usr_methods, only: usr_transform_w
+    use mod_input_output_helper, only: count_ix
     use mod_forest
     use mod_global_parameters
     use mod_slice, only: slicenext
@@ -2374,10 +2226,11 @@ contains
     call MPI_BCAST(snapshotnext,1,MPI_INTEGER,0,icomm,ierrmpi)
     call MPI_BCAST(slicenext,1,MPI_INTEGER,0,icomm,ierrmpi)
     call MPI_BCAST(collapsenext,1,MPI_INTEGER,0,icomm,ierrmpi)
+    call MPI_BCAST(stagger_mark_dat,1,MPI_LOGICAL,0,icomm,ierrmpi)
 
     ! Allocate send/receive buffer
     n_values = count_ix(ixG^LL) * nw_found
-    if(stagger_grid) then
+    if(stagger_mark_dat) then
       n_values = n_values + count_ix(ixGs^LL) * nws
     end if
     allocate(w_buffer(n_values))
@@ -2413,7 +2266,7 @@ contains
           {ixOmin^D = ixMlo^D - ix_buffer(^D)\}
           {ixOmax^D = ixMhi^D + ix_buffer(ndim+^D)\}
           n_values = count_ix(ixO^L) * nw_found
-          if(stagger_grid) then
+          if(stagger_mark_dat) then
             {ixOsmin^D = ixOmin^D - 1\}
             {ixOsmax^D = ixOmax^D\}
             n_values_stagger = n_values
@@ -2426,9 +2279,10 @@ contains
           if (mype == ipe) then ! Root task
             igrid=sfc_to_igrid(Morton_no)
             block=>ps(igrid)
-            if(stagger_grid) then
+            if(stagger_mark_dat) then
               w(ixO^S, 1:nw_found) = reshape(w_buffer(1:n_values_stagger), &
                    shape(w(ixO^S, 1:nw_found)))
+              if(stagger_grid) &
               ps(igrid)%ws(ixOs^S,1:nws)=reshape(w_buffer(n_values_stagger+1:n_values), &
                    shape(ws(ixOs^S, 1:nws)))
             else
@@ -2477,12 +2331,13 @@ contains
         call MPI_RECV(w_buffer, n_values, MPI_DOUBLE_PRECISION,&
              0, itag, icomm, iorecvstatus, ierrmpi)
 
-        if(stagger_grid) then
+        if(stagger_mark_dat) then
           n_values_stagger = count_ix(ixO^L) * nw_found
           {ixOsmin^D = ixOmin^D - 1\}
           {ixOsmax^D = ixOmax^D\}
           w(ixO^S, 1:nw_found) = reshape(w_buffer(1:n_values_stagger), &
                shape(w(ixO^S, 1:nw_found)))
+          if(stagger_grid) &
           ps(igrid)%ws(ixOs^S,1:nws)=reshape(w_buffer(n_values_stagger+1:n_values), &
                shape(ws(ixOs^S, 1:nws)))
         else

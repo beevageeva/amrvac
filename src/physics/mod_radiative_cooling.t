@@ -1261,6 +1261,26 @@ module mod_radiative_cooling
 
     end subroutine cooling_get_dt
 
+    ! copied from getvar_cooling
+    ! TODO replace there by calling this
+    subroutine get_rad_cooling(Te, rho, L1, fl)
+      use mod_global_parameters
+      double precision, intent(in):: Te, rho
+      double precision, intent(out):: L1
+      type(rc_fluid), intent(in) :: fl
+         !  Determine explicit cooling
+         if( Te<=fl%tcoolmin ) then
+            L1 = zero
+         else if( Te>=fl%tcoolmax )then
+            call calc_l_extended(Te, L1,fl)
+            L1 = L1*rho**2
+         else
+            call findL(Te,L1,fl)
+            L1 = L1*rho**2
+         end if
+
+    end subroutine get_rad_cooling
+
     subroutine getvar_cooling(ixI^L,ixO^L,w,x,coolrate,fl)
     ! Create extra variable to show cooling rate in the output
     ! Uses a simple explicit scheme. 
@@ -1864,6 +1884,11 @@ module mod_radiative_cooling
          !  assume Bremsstrahlung
          if( Te(ix^D)<=fl%tcoolmin ) then
            L1 = zero
+        !!JACK ADDITION (no chromosphere Radiative Losses)
+         !else if((x(ix^D,1) < 3.0d8/unit_length) .and. (Te(ix^D) < 1.0d4/unit_temperature)) then 
+         !else if(x(ix^D,1) < 3.0d8/unit_length) then 
+         !  L1 = zero
+        !!end JACK ADDITION
          else if( Te(ix^D)>=fl%tcoolmax )then
            call calc_l_extended(Te(ix^D), L1,fl)
            L1 = L1*rho(ix^D)**2

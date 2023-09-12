@@ -234,6 +234,9 @@ subroutine setdt()
       !  end do
       !end if
 
+      ! these are also calculated in hxO because of local timestep
+      if(nwaux>0) call phys_get_auxiliary(ixI^L,hxO^L,w,x)
+
       select case (type_courant)
       case (type_maxsum)
         cmaxtot(hxO^S)=zero

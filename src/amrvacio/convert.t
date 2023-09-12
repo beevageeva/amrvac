@@ -33,7 +33,8 @@ select case(convert_type_elem)
    call unstructuredvtkB64(unitconvert)
   {^IFTWOD
   case('vtuB23','vtuBCC23')
-   call unstructuredvtkB23(unitconvert)
+   !call unstructuredvtkB23(unitconvert)
+   call unstructuredvtkB23_CC(unitconvert)
   case('vtuBsym23','vtuBCCsym23')
    call unstructuredvtkBsym23(unitconvert)
   }
@@ -47,9 +48,9 @@ select case(convert_type_elem)
    call onegrid(unitconvert)
   case('oneblock','oneblockB')
    call oneblock(unitconvert)
-  case('EIvtiCCmpi','ESvtiCCmpi','SIvtiCCmpi','EIvtuCCmpi','ESvtuCCmpi','SIvtuCCmpi')
+  case('EIvtiCCmpi','ESvtiCCmpi','SIvtiCCmpi','WIvtiCCmpi','EIvtuCCmpi','ESvtuCCmpi','SIvtuCCmpi','WIvtuCCmpi')
     ! output synthetic euv emission
-    if (ndim==3 .and. slab .and. associated(phys_te_images)) then
+    if (ndim==3 .and. associated(phys_te_images)) then
       call phys_te_images
     endif
   case('dat_generic_mpi')
@@ -1246,6 +1247,428 @@ if (npe>1) then
 end if
 
 end subroutine unstructuredvtkB
+
+
+
+
+!subroutine write_vtk_mpi_CC(qunit)
+!
+!! output for vtu format to paraview, binary version output
+!! not parallel, uses calc_grid to compute nwauxio variables
+!! allows renormalizing using convert factors
+!use mod_forest, only: Morton_start, Morton_stop, sfc_to_igrid
+!use mod_global_parameters
+!use mod_calculate_xw
+!
+!integer, intent(in) ::    qunit
+!
+!double precision ::  x_VTK(1:3)
+!
+!double precision, dimension(ixMlo^D-1:ixMhi^D,ndim) :: xC_TMP
+!double precision, dimension(ixMlo^D:ixMhi^D,ndim)   :: xCC_TMP
+!double precision, dimension(ixMlo^D-1:ixMhi^D,ndim) :: xC
+!double precision, dimension(ixMlo^D:ixMhi^D,ndim)   :: xCC
+!
+!double precision, dimension(ixMlo^D-1:ixMhi^D,nw+nwauxio):: wC_TMP
+!double precision, dimension(ixMlo^D:ixMhi^D,nw+nwauxio)  :: wCC_TMP
+!double precision :: normconv(0:nw+nwauxio)
+!
+!integer, allocatable :: intstatus(:,:)
+!integer :: itag,ipe,igrid,level,icel,ixC^L,ixCC^L,Morton_no,Morton_length
+!integer :: nx^D,nxC^D,nc,np,VTK_type,ix^D,filenr
+!integer*8 :: offset
+!
+!integer::  k,iw
+!integer::  length,lengthcc,length_coords,length_conn,length_offsets
+!character::  buf
+!character(len=80)::  filename
+!character(len=name_len) :: wnamei(1:nw+nwauxio),xandwnamei(1:ndim+nw+nwauxio)
+!character(len=1024) :: outfilehead
+!
+!logical ::   fileopen,cell_corner=.false.
+!logical, allocatable :: Morton_aim(:),Morton_aim_p(:)
+!!-----------------------------------------------------------------------------
+!
+!normconv=one
+!Morton_length=Morton_stop(npe-1)-Morton_start(0)+1
+!allocate(Morton_aim(Morton_start(0):Morton_stop(npe-1)))
+!allocate(Morton_aim_p(Morton_start(0):Morton_stop(npe-1)))
+!Morton_aim=.false.
+!Morton_aim_p=.false.
+!do Morton_no=Morton_start(mype),Morton_stop(mype)
+!  igrid=sfc_to_igrid(Morton_no)
+!  level=node(plevel_,igrid)
+!  ! we can clip parts of the grid away, select variables, levels etc.
+!  if(writelevel(level)) then
+!    ! only output a grid when fully within clipped region selected
+!    ! by writespshift array
+!    if(({rnode(rpxmin^D_,igrid)>=xprobmin^D+(xprobmax^D-xprobmin^D)&
+!          *writespshift(^D,1)|.and.}).and.({rnode(rpxmax^D_,igrid)&
+!         <=xprobmax^D-(xprobmax^D-xprobmin^D)*writespshift(^D,2)|.and.})) then
+!      Morton_aim_p(Morton_no)=.true.
+!    end if
+!  end if
+!end do
+!call MPI_ALLREDUCE(Morton_aim_p,Morton_aim,Morton_length,MPI_LOGICAL,MPI_LOR,&
+!                         icomm,ierrmpi)
+!select case(convert_type)
+! case('vtuB','vtuBmpi')
+!   cell_corner=.true.
+! case('vtuBCC','vtuBCCmpi')
+!   cell_corner=.false.
+!end select
+!
+!
+!
+!if (mype /= 0) then
+!  do Morton_no=Morton_start(mype),Morton_stop(mype)
+!    if(.not. Morton_aim(Morton_no)) cycle
+!    igrid=sfc_to_igrid(Morton_no)
+!    call calc_x(igrid,xC,xCC)
+!    call calc_grid(qunit,igrid,xC,xCC,xC_TMP,xCC_TMP,wC_TMP,wCC_TMP,normconv,&
+!                      ixC^L,ixCC^L,.true.)
+!    itag=Morton_no
+!    call MPI_SEND(xC_TMP,1,type_block_xc_io, 0,itag,icomm,ierrmpi)
+!    if(cell_corner) then
+!      call MPI_SEND(wC_TMP,1,type_block_wc_io, 0,itag,icomm,ierrmpi)
+!    else
+!      call MPI_SEND(wCC_TMP,1,type_block_wcc_io, 0,itag,icomm,ierrmpi)
+!    end if
+!  end do
+!
+!else
+!  ! mype==0
+!  offset=0
+!  inquire(qunit,opened=fileopen)
+!  if(.not.fileopen)then
+!    ! generate filename 
+!    filenr=snapshotini
+!    if (autoconvert) filenr=snapshotnext
+!    write(filename,'(a,i4.4,a)') TRIM(base_filename),filenr,".vtu"
+!    ! Open the file for the header part
+!    open(qunit,file=filename,status='replace')
+!  end if
+!  call getheadernames(wnamei,xandwnamei,outfilehead)
+!  ! generate xml header
+!  write(qunit,'(a)')'<?xml version="1.0"?>'
+!  write(qunit,'(a)',advance='no') '<VTKFile type="UnstructuredGrid"'
+!  write(qunit,'(a)')' version="0.1" byte_order="LittleEndian">'
+!  write(qunit,'(a)')'<UnstructuredGrid>'
+!  write(qunit,'(a)')'<FieldData>'
+!  write(qunit,'(2a)')'<DataArray type="Float32" Name="TIME" ',&
+!                     'NumberOfTuples="1" format="ascii">'
+!  write(qunit,*) real(global_time*time_convert_factor)
+!  write(qunit,'(a)')'</DataArray>'
+!  write(qunit,'(a)')'</FieldData>'
+!
+!  ! number of cells, number of corner points, per grid.
+!  nx^D=ixMhi^D-ixMlo^D+1;
+!  nxC^D=nx^D+1;
+!  nc={nx^D*}
+!  np={nxC^D*}
+!  length=np*size_real
+!  lengthcc=nc*size_real
+!  length_coords=3*length
+!  length_conn=2**^ND*size_int*nc
+!  length_offsets=nc*size_int
+!
+!  ! Note: using the w_write, writelevel, writespshift
+!  do Morton_no=Morton_start(0),Morton_stop(0)
+!    if(.not. Morton_aim(Morton_no)) cycle
+!    if(cell_corner) then
+!      ! we write out every grid as one VTK PIECE
+!      write(qunit,'(a,i7,a,i7,a)') &
+!         '<Piece NumberOfPoints="',np,'" NumberOfCells="',nc,'">'
+!      write(qunit,'(a)')'<PointData>'
+!      do iw=1,nw+nwauxio
+!        if(iw<=nw) then 
+!          if(.not.w_write(iw)) cycle
+!        endif
+!
+!        write(qunit,'(a,a,a,i16,a)')&
+!            '<DataArray type="Float32" Name="',TRIM(wnamei(iw)), &
+!            '" format="appended" offset="',offset,'">'
+!        write(qunit,'(a)')'</DataArray>'
+!        offset=offset+length+size_int
+!      end do
+!      write(qunit,'(a)')'</PointData>'
+!      write(qunit,'(a)')'<Points>'
+!      write(qunit,'(a,i16,a)') &
+!      '<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="',offset,'"/>'
+!      ! write cell corner coordinates in a backward dimensional loop, always 3D output
+!      offset=offset+length_coords+size_int
+!      write(qunit,'(a)')'</Points>'
+!    else
+!      ! we write out every grid as one VTK PIECE
+!      write(qunit,'(a,i7,a,i7,a)') &
+!         '<Piece NumberOfPoints="',np,'" NumberOfCells="',nc,'">'
+!      write(qunit,'(a)')'<CellData>'
+!      do iw=1,nw+nwauxio
+!        if(iw<=nw) then 
+!           if(.not.w_write(iw)) cycle
+!        end if
+!        write(qunit,'(a,a,a,i16,a)')&
+!            '<DataArray type="Float32" Name="',TRIM(wnamei(iw)), &
+!            '" format="appended" offset="',offset,'">'
+!        write(qunit,'(a)')'</DataArray>'
+!        offset=offset+lengthcc+size_int
+!      end do
+!      write(qunit,'(a)')'</CellData>'
+!      write(qunit,'(a)')'<Points>'
+!      write(qunit,'(a,i16,a)') &
+!      '<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="',offset,'"/>'
+!      ! write cell corner coordinates in a backward dimensional loop, always 3D output
+!      offset=offset+length_coords+size_int
+!      write(qunit,'(a)')'</Points>'
+!    end if
+!    write(qunit,'(a)')'<Cells>'
+!
+!    ! connectivity part
+!    write(qunit,'(a,i16,a)')&
+!      '<DataArray type="Int32" Name="connectivity" format="appended" offset="',offset,'"/>'
+!    offset=offset+length_conn+size_int    
+!
+!    ! offsets data array
+!    write(qunit,'(a,i16,a)') &
+!      '<DataArray type="Int32" Name="offsets" format="appended" offset="',offset,'"/>'
+!    offset=offset+length_offsets+size_int    
+!
+!    ! VTK cell type data array
+!    write(qunit,'(a,i16,a)') &
+!      '<DataArray type="Int32" Name="types" format="appended" offset="',offset,'"/>' 
+!    offset=offset+size_int+nc*size_int
+!
+!    write(qunit,'(a)')'</Cells>'
+!
+!    write(qunit,'(a)')'</Piece>'
+!  end do
+!  ! write metadata communicated from other processors
+!  if(npe>1)then
+!    do ipe=1, npe-1
+!      do Morton_no=Morton_start(ipe),Morton_stop(ipe)
+!        if(.not. Morton_aim(Morton_no)) cycle
+!        if(cell_corner) then
+!          ! we write out every grid as one VTK PIECE
+!          write(qunit,'(a,i7,a,i7,a)') &
+!             '<Piece NumberOfPoints="',np,'" NumberOfCells="',nc,'">'
+!          write(qunit,'(a)')'<PointData>'
+!          do iw=1,nw+nwauxio
+!            if(iw<=nw) then 
+!              if(.not.w_write(iw)) cycle
+!            end if
+!            write(qunit,'(a,a,a,i16,a)')&
+!                '<DataArray type="Float32" Name="',TRIM(wnamei(iw)), &
+!                '" format="appended" offset="',offset,'">'
+!            write(qunit,'(a)')'</DataArray>'
+!            offset=offset+length+size_int
+!          end do
+!          write(qunit,'(a)')'</PointData>'
+!          write(qunit,'(a)')'<Points>'
+!          write(qunit,'(a,i16,a)') &
+!          '<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="',offset,'"/>'
+!          ! write cell corner coordinates in a backward dimensional loop, always 3D output
+!          offset=offset+length_coords+size_int
+!          write(qunit,'(a)')'</Points>'
+!        else
+!          ! we write out every grid as one VTK PIECE
+!          write(qunit,'(a,i7,a,i7,a)') &
+!             '<Piece NumberOfPoints="',np,'" NumberOfCells="',nc,'">'
+!          write(qunit,'(a)')'<CellData>'
+!          do iw=1,nw+nwauxio
+!            if(iw<=nw) then 
+!              if(.not.w_write(iw)) cycle
+!            end if
+!            write(qunit,'(a,a,a,i16,a)')&
+!                '<DataArray type="Float32" Name="',TRIM(wnamei(iw)), &
+!                '" format="appended" offset="',offset,'">'
+!            write(qunit,'(a)')'</DataArray>'
+!            offset=offset+lengthcc+size_int
+!          end do
+!          write(qunit,'(a)')'</CellData>'
+!          write(qunit,'(a)')'<Points>'
+!          write(qunit,'(a,i16,a)') &
+!          '<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="',offset,'"/>'
+!          ! write cell corner coordinates in a backward dimensional loop, always 3D output
+!          offset=offset+length_coords+size_int
+!          write(qunit,'(a)')'</Points>'
+!        end if
+!        write(qunit,'(a)')'<Cells>'
+!        ! connectivity part
+!        write(qunit,'(a,i16,a)')&
+!          '<DataArray type="Int32" Name="connectivity" format="appended" offset="',offset,'"/>'
+!        offset=offset+length_conn+size_int    
+!
+!        ! offsets data array
+!        write(qunit,'(a,i16,a)') &
+!          '<DataArray type="Int32" Name="offsets" format="appended" offset="',offset,'"/>'
+!        offset=offset+length_offsets+size_int    
+!
+!        ! VTK cell type data array
+!        write(qunit,'(a,i16,a)') &
+!          '<DataArray type="Int32" Name="types" format="appended" offset="',offset,'"/>' 
+!        offset=offset+size_int+nc*size_int
+!
+!        write(qunit,'(a)')'</Cells>'
+!
+!        write(qunit,'(a)')'</Piece>'
+!      end do
+!    end do
+!  end if
+!
+!  write(qunit,'(a)')'</UnstructuredGrid>'
+!  write(qunit,'(a)')'<AppendedData encoding="raw">'
+!  close(qunit)
+!  open(qunit,file=filename,access='stream',form='unformatted',position='append')
+!  buf='_'
+!  write(qunit) TRIM(buf)
+!
+!  do Morton_no=Morton_start(0),Morton_stop(0)
+!    if(.not. Morton_aim(Morton_no)) cycle
+!    igrid=sfc_to_igrid(Morton_no)
+!    call calc_x(igrid,xC,xCC)
+!    call calc_grid(qunit,igrid,xC,xCC,xC_TMP,xCC_TMP,wC_TMP,wCC_TMP,normconv,&
+!                   ixC^L,ixCC^L,.true.)
+!    do iw=1,nw+nwauxio
+!      if(iw<=nw) then 
+!        if(.not.w_write(iw)) cycle
+!      end if
+!      if(cell_corner) then
+!        write(qunit) length
+!        write(qunit) {(|}real(wC_TMP(ix^D,iw)*normconv(iw)),{ix^D=ixCmin^D,ixCmax^D)}
+!      else
+!        write(qunit) lengthcc
+!        write(qunit) {(|}real(wCC_TMP(ix^D,iw)*normconv(iw)),{ix^D=ixCCmin^D,ixCCmax^D)}
+!      end if
+!    end do
+!
+!    write(qunit) length_coords
+!    {do ix^DB=ixCmin^DB,ixCmax^DB \}
+!      x_VTK(1:3)=zero;
+!      x_VTK(1:ndim)=xC_TMP(ix^D,1:ndim)*normconv(0);
+!      do k=1,3
+!        write(qunit) real(x_VTK(k))
+!      end do
+!    {end do \}
+!
+!    write(qunit) length_conn
+!    {do ix^DB=1,nx^DB\}
+!      {^IFONED write(qunit)ix1-1,ix1 \}
+!      {^IFTWOD
+!      write(qunit)(ix2-1)*nxC1+ix1-1, &
+!      (ix2-1)*nxC1+ix1,ix2*nxC1+ix1-1,ix2*nxC1+ix1
+!       \}
+!      {^IFTHREED
+!      write(qunit)&
+!      (ix3-1)*nxC2*nxC1+(ix2-1)*nxC1+ix1-1, &
+!      (ix3-1)*nxC2*nxC1+(ix2-1)*nxC1+ix1,&
+!      (ix3-1)*nxC2*nxC1+    ix2*nxC1+ix1-1,&
+!      (ix3-1)*nxC2*nxC1+    ix2*nxC1+ix1,&
+!       ix3*nxC2*nxC1+(ix2-1)*nxC1+ix1-1,&
+!       ix3*nxC2*nxC1+(ix2-1)*nxC1+ix1,&
+!       ix3*nxC2*nxC1+    ix2*nxC1+ix1-1,&
+!       ix3*nxC2*nxC1+    ix2*nxC1+ix1
+!       \}
+!    {end do\}
+!
+!    write(qunit) length_offsets
+!    do icel=1,nc
+!      write(qunit) icel*(2**^ND)
+!    end do
+!
+!   {^IFONED VTK_type=3 \}
+!   {^IFTWOD VTK_type=8 \}
+!   {^IFTHREED VTK_type=11 \}
+!    write(qunit) size_int*nc
+!    do icel=1,nc
+!      write(qunit) VTK_type
+!    end do
+!  end do
+!  allocate(intstatus(MPI_STATUS_SIZE,1))
+!  if(npe>1)then
+!    ixCCmin^D=ixMlo^D; ixCCmax^D=ixMhi^D;
+!    ixCmin^D=ixMlo^D-1; ixCmax^D=ixMhi^D;
+!    do ipe=1, npe-1
+!      do Morton_no=Morton_start(ipe),Morton_stop(ipe)
+!        if(.not. Morton_aim(Morton_no)) cycle
+!        itag=Morton_no
+!        call MPI_RECV(xC_TMP,1,type_block_xc_io, ipe,itag,icomm,intstatus(:,1),ierrmpi)
+!        if(cell_corner) then
+!          call MPI_RECV(wC_TMP,1,type_block_wc_io, ipe,itag,icomm,intstatus(:,1),ierrmpi)
+!        else
+!          call MPI_RECV(wCC_TMP,1,type_block_wcc_io, ipe,itag,icomm,intstatus(:,1),ierrmpi)
+!        end if
+!        do iw=1,nw+nwauxio
+!          if(iw<=nw) then 
+!            if(.not.w_write(iw)) cycle
+!          end if
+!          if(cell_corner) then
+!            write(qunit) length
+!            write(qunit) {(|}real(wC_TMP(ix^D,iw)*normconv(iw)),{ix^D=ixCmin^D,ixCmax^D)}
+!          else
+!            write(qunit) lengthcc
+!            write(qunit) {(|}real(wCC_TMP(ix^D,iw)*normconv(iw)),{ix^D=ixCCmin^D,ixCCmax^D)}
+!          end if
+!        end do
+!
+!        write(qunit) length_coords
+!        {do ix^DB=ixCmin^DB,ixCmax^DB \}
+!          x_VTK(1:3)=zero;
+!          x_VTK(1:ndim)=xC_TMP(ix^D,1:ndim)*normconv(0);
+!          do k=1,3
+!           write(qunit) real(x_VTK(k))
+!          end do
+!        {end do \}
+!
+!        write(qunit) length_conn
+!        {do ix^DB=1,nx^DB\}
+!          {^IFONED write(qunit)ix1-1,ix1 \}
+!          {^IFTWOD
+!          write(qunit)(ix2-1)*nxC1+ix1-1, &
+!          (ix2-1)*nxC1+ix1,ix2*nxC1+ix1-1,ix2*nxC1+ix1
+!           \}
+!          {^IFTHREED
+!          write(qunit)&
+!          (ix3-1)*nxC2*nxC1+(ix2-1)*nxC1+ix1-1, &
+!          (ix3-1)*nxC2*nxC1+(ix2-1)*nxC1+ix1,&
+!          (ix3-1)*nxC2*nxC1+    ix2*nxC1+ix1-1,&
+!          (ix3-1)*nxC2*nxC1+    ix2*nxC1+ix1,&
+!           ix3*nxC2*nxC1+(ix2-1)*nxC1+ix1-1,&
+!           ix3*nxC2*nxC1+(ix2-1)*nxC1+ix1,&
+!           ix3*nxC2*nxC1+    ix2*nxC1+ix1-1,&
+!           ix3*nxC2*nxC1+    ix2*nxC1+ix1
+!           \}
+!        {end do\}
+!
+!        write(qunit) length_offsets
+!        do icel=1,nc
+!          write(qunit) icel*(2**^ND)
+!        end do
+!        {^IFONED VTK_type=3 \}
+!        {^IFTWOD VTK_type=8 \}
+!        {^IFTHREED VTK_type=11 \}
+!        write(qunit) size_int*nc
+!        do icel=1,nc
+!          write(qunit) VTK_type
+!        end do
+!      end do
+!    end do
+!  end if
+!  close(qunit)
+!  open(qunit,file=filename,status='unknown',form='formatted',position='append')
+!  write(qunit,'(a)')'</AppendedData>'
+!  write(qunit,'(a)')'</VTKFile>'
+!  close(qunit)
+!  deallocate(intstatus)
+!end if
+!
+!deallocate(Morton_aim,Morton_aim_p)
+!if (npe>1) then
+!  call MPI_BARRIER(icomm,ierrmpi)
+!end if
+!
+!end subroutine write_wtk_mpi_CC
+
+
 !====================================================================================
 subroutine unstructuredvtkB64(qunit)
 
@@ -3174,8 +3597,7 @@ close(qunit)
 end subroutine punstructuredvtkB_mpi
 {^IFTWOD
 ! subroutines to convert 2.5D data to 3D data
-!====================================================================================
-subroutine unstructuredvtkB23(qunit)
+subroutine unstructuredvtkB23_CC(qunit)
 
 ! output for vtu format to paraview, binary version output
 ! not parallel, uses calc_grid to compute nwauxio variables
@@ -3188,23 +3610,16 @@ integer, intent(in) ::    qunit
 
 double precision ::  x_VTK(1:3)
 
-double precision, dimension(ixMlo1-1:ixMhi1,ixMlo2-1:ixMhi2,ixMlo1&
-   -1:ixMhi1,3) :: xC_TMP
-double precision, dimension(ixMlo1:ixMhi1,ixMlo2:ixMhi2,ixMlo1:ixMhi1,&
-   3)   :: xCC_TMP
+double precision, allocatable, dimension(:,:,:,:)   :: &
+          xCC_TMP, xC_TMP, wCC_TMP, w
 
-double precision, dimension(ixMlo1-1:ixMhi1,ixMlo2-1:ixMhi2,ixMlo1&
-   -1:ixMhi1,nw+nwauxio)   :: wC_TMP
-double precision, dimension(ixMlo1:ixMhi1,ixMlo2:ixMhi2,ixMlo1:ixMhi1,nw&
-   +nwauxio)     :: wCC_TMP
-double precision, dimension(ixGlo1:ixGhi1,ixGlo2:ixGhi2,ixGlo1:ixGhi1,1:nw&
-   +nwauxio)   :: w
-integer::               igrid,iigrid,level,igonlevel,icel,ixCmin1,ixCmin2,&
-   ixCmin3,ixCmax1,ixCmax2,ixCmax3,ixCCmin1,ixCCmin2,ixCCmin3,ixCCmax1,&
-   ixCCmax2,ixCCmax3
+integer::               igrid,iigrid,level,icel,&
+      ixCCmin1,ixCCmin2,ixCCmin3,ixCCmax1,&
+   ixCCmax2,ixCCmax3, ixCmin1,ixCmin2,ixCmin3,ixCmax1,&
+   ixCmax2,ixCmax3 
 integer::               NumGridsOnLevel(1:nlevelshi)
 integer :: nx1,nx2,nx3,nxC1,nxC2,nxC3,nodesonlevel,elemsonlevel,nc,np,&
-   VTK_type,ix1,ix2,ix3
+   VTK_type,ix1,ix2,ix3, ix, ixGlo3, ixGhi3
 double precision :: normconv(0:nw+nwauxio)
 character(len=80)::  filename
 character(len=name_len) :: wnamei(1:nw+nwauxio),xandwnamei(1:3+nw+nwauxio)
@@ -3219,6 +3634,9 @@ character::  buffer
 character(len=6)::  bufform
 
 double precision :: zlength
+
+!integer,parameter :: dimRepeat = 1
+integer,parameter :: dimRepeat = 2
 
 logical ::   fileopen
 !-----------------------------------------------------------------------------
@@ -3252,8 +3670,41 @@ write(qunit,'(f10.2)') real(global_time*time_convert_factor)
 write(qunit,'(a)')'</DataArray>'
 write(qunit,'(a)')'</FieldData>'
 
+! Note: using the w_write, writelevel, writespshift
+! we can clip parts of the grid away, select variables, levels etc.
+zgridsc=2.d0
+zlengsc=2.d0*zgridsc
 ! number of cells, number of corner points, per grid.
-nx1=ixMhi1-ixMlo1+1;nx2=ixMhi2-ixMlo2+1;nx3=ixMhi1-ixMlo1+1;
+nx1=ixMhi1-ixMlo1+1;nx2=ixMhi2-ixMlo2+1;
+ixCCmin1=ixMlo1;ixCCmin2=ixMlo2;
+ixCCmax1=ixMhi1;ixCCmax2=ixMhi2;
+! coordinates of cell corners
+ixCmin1=ixMlo1-1;ixCmin2=ixMlo2-1;
+ixCmax1=ixMhi1;ixCmax2=ixMhi2;
+if(dimRepeat == 1) then
+  nx3=ixMhi1-ixMlo1+1
+  zlength=zlengsc*(xprobmax1-xprobmin1)
+  ixCCmin3=ixMlo1;ixCCmax3=ixMhi1;
+  ixCmin3=ixMlo1-1;ixCmax3=ixMhi1;
+  ixGlo3=ixGlo1
+  ixGhi3=ixGhi1
+
+else
+  nx3=ixMhi2-ixMlo2+1
+  zlength=zlengsc*(xprobmax2-xprobmin2)
+  ixCCmin3=ixMlo2;ixCCmax3=ixMhi2;
+  ixCmin3=ixMlo2-1;ixCmax3=ixMhi2;
+  ixGlo3=ixGlo2
+  ixGhi3=ixGhi2
+endif
+
+
+allocate(xCC_TMP(ixGlo1:ixGhi1,ixGlo2:ixGhi2,ixGlo3:ixGhi3,3))
+allocate(xC_TMP(ixGlo1:ixGhi1,ixGlo2:ixGhi2,ixGlo3:ixGhi3,3))
+allocate(wCC_TMP(ixGlo1:ixGhi1,ixGlo2:ixGhi2,ixGlo3:ixGhi3,1:nw+nwauxio))
+allocate(w(ixGlo1:ixGhi1,ixGlo2:ixGhi2,ixGlo3:ixGhi3,1:nw+nwauxio))
+
+   
 nxC1=nx1+1;nxC2=nx2+1;nxC3=nx3+1;
 nc=nx1*nx2*nx3
 np=nxC1*nxC2*nxC3
@@ -3265,11 +3716,6 @@ length_coords=3*length
 length_conn=2**3*size_int*nc
 length_offsets=nc*size_int
 
-! Note: using the w_write, writelevel, writespshift
-! we can clip parts of the grid away, select variables, levels etc.
-zgridsc=2.d0
-zlengsc=2.d0*zgridsc
-zlength=zlengsc*(xprobmax1-xprobmin1)
 do level=levmin,levmax
  if (writelevel(level)) then
    do iigrid=1,igridstail; igrid=igrids(iigrid);
@@ -3283,7 +3729,11 @@ do level=levmin,levmax
        .and.(rnode(rpxmax1_,igrid)<=xprobmax1-(xprobmax1-xprobmin1)&
        *writespshift(1,2).and.rnode(rpxmax2_,igrid)<=xprobmax2-(xprobmax2&
        -xprobmin2)*writespshift(2,2))) then
-      d3grid=zgridsc*(rnode(rpxmax1_,igrid)-rnode(rpxmin1_,igrid))
+      if(dimRepeat==1) then
+        d3grid=zgridsc*(rnode(rpxmax1_,igrid)-rnode(rpxmin1_,igrid))
+      else
+        d3grid=zgridsc*(rnode(rpxmax2_,igrid)-rnode(rpxmin2_,igrid))
+      endif
       n3grid=nint(zlength/d3grid)
       do i3grid=1,n3grid !subcycles
       select case(convert_type)
@@ -3397,7 +3847,402 @@ do level=levmin,levmax
          .and.(rnode(rpxmax1_,igrid)<=xprobmax1-(xprobmax1-xprobmin1)&
          *writespshift(1,2).and.rnode(rpxmax2_,igrid)<=xprobmax2-(xprobmax2&
          -xprobmin2)*writespshift(2,2))) then
-       d3grid=zgridsc*(rnode(rpxmax1_,igrid)-rnode(rpxmin1_,igrid))
+        if(dimRepeat==1) then
+          d3grid=zgridsc*(rnode(rpxmax1_,igrid)-rnode(rpxmin1_,igrid))
+        else
+          d3grid=zgridsc*(rnode(rpxmax2_,igrid)-rnode(rpxmin2_,igrid))
+        endif   
+
+
+       n3grid=nint(zlength/d3grid)
+       ! In case primitives to be saved: use primitive subroutine
+       !  extra layer around mesh only needed when storing corner values and averaging
+       if(saveprim) then
+         call phys_to_primitive(ixGlo1,ixGlo2,ixGhi1,ixGhi2,&
+         ixGlo1,ixGlo2,ixGhi1,ixGhi2,ps(igrid)%w,ps(igrid)%x)
+       endif
+       ! using array w so that new output auxiliaries can be calculated by the user
+       ! extend 2D data to 3D insuring variables are independent on the third coordinate
+       do ix3=ixGlo3,ixGhi3
+        w(ixGlo1:ixGhi1,ixGlo2:ixGhi2,ix3,1:nw)=ps(igrid)%w(ixGlo1:ixGhi1,&
+          ixGlo2:ixGhi2,1:nw)
+       end do
+       do i3grid=1,n3grid !subcycles
+
+      !COPY
+        do ix=ixCmin1,ixCmax1
+            xC_TMP(ix,ixCmin2:ixCmax2,ixCmin3:ixCmax3,1)=rnode(rpxmin1_,igrid)&
+               +dble(ix-ixCmin1)*dx1
+        end do
+        do ix=ixCmin2,ixCmax2
+            xC_TMP(ixCmin1:ixCmax1,ix,ixCmin3:ixCmax3,2)=rnode(rpxmin2_,igrid)&
+               +dble(ix-ixCmin2)*dx2
+        end do
+        do ix=ixCmin3,ixCmax3
+            xC_TMP(ixCmin1:ixCmax1,ixCmin2:ixCmax2,ix,3)=-zlength/two+&
+              dble(i3grid-1)*d3grid+dble(ix-ixCmin3)*dx3
+        end do
+
+        do ix=ixCCmin1,ixCCmax1
+            xCC_TMP(ix,ixCCmin2:ixCCmax2,ixCCmin3:ixCCmax3,1)=rnode(rpxmin1_,igrid)&
+               +(dble(ix-ixCCmin1)+half)*dx1
+        end do
+        do ix=ixCCmin2,ixCCmax2
+            xCC_TMP(ixCCmin1:ixCCmax1,ix,ixCCmin3:ixCCmax3,2)=rnode(rpxmin2_,igrid)&
+               +(dble(ix-ixCCmin2)+half)*dx2
+        end do
+        do ix=ixCCmin3,ixCCmax3
+            xCC_TMP(ixCCmin1:ixCCmax1,ixCCmin2:ixCCmax2,ix,3)=-zlength/two+&
+               dble(i3grid-1)*d3grid+(dble(ix-ixCCmin3)+half)*dx3
+        end do
+        
+        
+        ! compute the cell-center values for w first
+        !===========================================
+        ! cell center values obtained from mere copy, while B0+B1 split handled here
+        
+        wCC_TMP(ixCCmin1:ixCCmax1,ixCCmin2:ixCCmax2,ixCCmin3:ixCCmax3,:)=w(ixCCmin1:ixCCmax1,ixCCmin2:ixCCmax2,ixCCmin3:ixCCmax3,:)
+        if(B0field) then
+          do ix3=ixCCmin3,ixCCmax3
+            do ix2=ixCCmin2,ixCCmax2
+              do ix1=ixCCmin1,ixCCmax1
+                wCC_TMP(ix1,ix2,ix3,iw_mag(:))=wCC_TMP(ix1,ix2,ix3,iw_mag(:))+ps(igrid)%B0(ix1,ix2,&
+                    :,0)
+              end do
+            end do
+          end do
+        end if
+        
+        if(.not.saveprim .and. B0field .and. iw_e>0) then
+           do ix3=ixCCmin3,ixCCmax3
+           do ix2=ixCCmin2,ixCCmax2
+           do ix1=ixCCmin1,ixCCmax1
+               wCC_TMP(ix1,ix2,ix3,iw_e)=w(ix1,ix2,ix3,iw_e) +half*sum(ps(igrid)%B0(ix1,&
+                  ix2,:,0)**2 ) + sum(w(ix1,ix2,ix3,&
+                  iw_mag(:))*ps(igrid)%B0(ix1,ix2,:,0))
+           end do
+           end do
+           end do
+        end if
+
+
+!!ENDCOPY
+
+
+        do iw=1,nw
+          if(.not.w_write(iw))cycle
+              write(qunit) lengthcc
+              write(qunit) (((real(wCC_TMP(ix1,ix2,ix3,iw)*normconv(iw)),ix1&
+                 =ixCCmin1,ixCCmax1),ix2=ixCCmin2,ixCCmax2),ix3&
+                 =ixCCmin3,ixCCmax3)
+        enddo
+        if(nwauxio>0)then
+         do iw=nw+1,nw+nwauxio
+               write(qunit) lengthcc
+               write(qunit) (((real(wCC_TMP(ix1,ix2,ix3,iw)*normconv(iw)),ix1&
+                  =ixCCmin1,ixCCmax1),ix2=ixCCmin2,ixCCmax2),ix3&
+                  =ixCCmin3,ixCCmax3)
+         end do
+        end if
+        write(qunit) length_coords
+        do ix3=ixCmin3,ixCmax3
+        do ix2=ixCmin2,ixCmax2
+        do ix1=ixCmin1,ixCmax1
+          x_VTK(1:3)=zero;
+          x_VTK(1:3)=xC_TMP(ix1,ix2,ix3,1:3)*normconv(0);
+          do k=1,3
+           write(qunit) reaL(x_VTK(k))
+          end do
+        end do
+        end do
+        end do
+
+        write(qunit) length_conn
+        do ix3=1,nx3
+        do ix2=1,nx2
+        do ix1=1,nx1
+          write(qunit)&
+          (ix3-1)*nxC2*nxC1+(ix2-1)*nxC1+ix1-1, &
+          (ix3-1)*nxC2*nxC1+(ix2-1)*nxC1+ix1,&
+          (ix3-1)*nxC2*nxC1+    ix2*nxC1+ix1-1,&
+          (ix3-1)*nxC2*nxC1+    ix2*nxC1+ix1,&
+           ix3*nxC2*nxC1+(ix2-1)*nxC1+ix1-1,&
+           ix3*nxC2*nxC1+(ix2-1)*nxC1+ix1,&
+           ix3*nxC2*nxC1+    ix2*nxC1+ix1-1,&
+           ix3*nxC2*nxC1+    ix2*nxC1+ix1
+
+        end do
+        end do
+        end do
+        write(qunit) length_offsets
+        do icel=1,nc
+           write(qunit) icel*(2**3)
+        end do
+
+        VTK_type=11
+        write(qunit) size_int*nc
+        do icel=1,nc
+         write(qunit) VTK_type
+        end do
+       end do !subcycles
+      end if
+   end do
+ end if
+end do
+
+deallocate(wCC_TMP,xCC_TMP,xC_TMP,w)
+
+close(qunit)
+open(qunit,file=filename,status='unknown',form='formatted',position='append')
+
+write(qunit,'(a)')'</AppendedData>'
+write(qunit,'(a)')'</VTKFile>'
+close(qunit)
+end subroutine unstructuredvtkB23_CC
+!====================================================================================
+subroutine unstructuredvtkB23(qunit)
+
+! output for vtu format to paraview, binary version output
+! not parallel, uses calc_grid to compute nwauxio variables
+
+use mod_global_parameters
+use mod_physics
+use mod_calculate_xw
+
+integer, intent(in) ::    qunit
+
+double precision ::  x_VTK(1:3)
+
+double precision, dimension(ixMlo1-1:ixMhi1,ixMlo2-1:ixMhi2,ixMlo1&
+   -1:ixMhi1,3) :: xC_TMP
+double precision, dimension(ixMlo1:ixMhi1,ixMlo2:ixMhi2,ixMlo1:ixMhi1,&
+   3)   :: xCC_TMP
+
+double precision, dimension(ixMlo1-1:ixMhi1,ixMlo2-1:ixMhi2,ixMlo1&
+   -1:ixMhi1,nw+nwauxio)   :: wC_TMP
+double precision, dimension(ixMlo1:ixMhi1,ixMlo2:ixMhi2,ixMlo1:ixMhi1,nw&
+   +nwauxio)     :: wCC_TMP
+double precision, dimension(ixGlo1:ixGhi1,ixGlo2:ixGhi2,ixGlo1:ixGhi1,1:nw&
+   +nwauxio)   :: w
+integer::               igrid,iigrid,level,igonlevel,icel,ixCmin1,ixCmin2,&
+   ixCmin3,ixCmax1,ixCmax2,ixCmax3,ixCCmin1,ixCCmin2,ixCCmin3,ixCCmax1,&
+   ixCCmax2,ixCCmax3
+integer::               NumGridsOnLevel(1:nlevelshi)
+integer :: nx1,nx2,nx3,nxC1,nxC2,nxC3,nodesonlevel,elemsonlevel,nc,np,&
+   VTK_type,ix1,ix2,ix3
+double precision :: normconv(0:nw+nwauxio)
+character(len=80)::  filename
+character(len=name_len) :: wnamei(1:nw+nwauxio),xandwnamei(1:3+nw+nwauxio)
+character(len=1024) :: outfilehead
+integer*8 :: offset
+integer :: size_length,recsep,k,iw
+integer :: length,lengthcc,offset_points,offset_cells, length_coords,&
+   length_conn,length_offsets
+integer :: i3grid,n3grid
+double precision ::d3grid,zlengsc,zgridsc
+character::  buffer
+character(len=6)::  bufform
+
+double precision :: zlength
+
+!integer,parameter :: dimRepeat = 1
+integer,parameter :: dimRepeat = 2
+
+logical ::   fileopen
+!-----------------------------------------------------------------------------
+if(npe>1)then
+ if(mype==0) PRINT *,'unstructuredvtkB23 not parallel, use vtumpi'
+ call mpistop('npe>1, unstructuredvtkB23')
+end if
+
+offset=0
+recsep=4
+size_length=4
+
+inquire(qunit,opened=fileopen)
+if(.not.fileopen)then
+  ! generate filename 
+  write(filename,'(a,a,i4.4,a)') TRIM(base_filename),"3D",snapshotini,".vtu"
+  ! Open the file for the header part
+  open(qunit,file=filename,status='replace')
+endif
+
+call getheadernames(wnamei,xandwnamei,outfilehead)
+! generate xml header
+write(qunit,'(a)')'<?xml version="1.0"?>'
+write(qunit,'(a)',advance='no') '<VTKFile type="UnstructuredGrid"'
+write(qunit,'(a)')' version="0.1" byte_order="LittleEndian">'
+write(qunit,'(a)')'<UnstructuredGrid>'
+write(qunit,'(a)')'<FieldData>'
+write(qunit,'(2a)')'<DataArray type="Float32" Name="TIME" ',&
+                   'NumberOfTuples="1" format="ascii">'
+write(qunit,'(f10.2)') real(global_time*time_convert_factor)
+write(qunit,'(a)')'</DataArray>'
+write(qunit,'(a)')'</FieldData>'
+
+! Note: using the w_write, writelevel, writespshift
+! we can clip parts of the grid away, select variables, levels etc.
+zgridsc=2.d0
+zlengsc=2.d0*zgridsc
+! number of cells, number of corner points, per grid.
+nx1=ixMhi1-ixMlo1+1;nx2=ixMhi2-ixMlo2+1;
+if(dimRepeat == 1) then
+  nx3=ixMhi1-ixMlo1+1
+  zlength=zlengsc*(xprobmax1-xprobmin1)
+else
+  nx3=ixMhi2-ixMlo2+2
+  zlength=zlengsc*(xprobmax2-xprobmin2)
+endif
+
+nxC1=nx1+1;nxC2=nx2+1;nxC3=nx3+1;
+nc=nx1*nx2*nx3
+np=nxC1*nxC2*nxC3
+
+length=np*size_real
+lengthcc=nc*size_real
+
+length_coords=3*length
+length_conn=2**3*size_int*nc
+length_offsets=nc*size_int
+
+do level=levmin,levmax
+ if (writelevel(level)) then
+   do iigrid=1,igridstail; igrid=igrids(iigrid);
+    if (node(plevel_,igrid)/=level) cycle
+    block=>ps(igrid)
+    ! only output a grid when fully within clipped region selected
+    ! by writespshift array
+    if ((rnode(rpxmin1_,igrid)>=xprobmin1+(xprobmax1-xprobmin1)&
+       *writespshift(1,1).and.rnode(rpxmin2_,igrid)>=xprobmin2&
+       +(xprobmax2-xprobmin2)*writespshift(2,1))&
+       .and.(rnode(rpxmax1_,igrid)<=xprobmax1-(xprobmax1-xprobmin1)&
+       *writespshift(1,2).and.rnode(rpxmax2_,igrid)<=xprobmax2-(xprobmax2&
+       -xprobmin2)*writespshift(2,2))) then
+      if(dimRepeat==1) then
+        d3grid=zgridsc*(rnode(rpxmax1_,igrid)-rnode(rpxmin1_,igrid))
+      else
+        d3grid=zgridsc*(rnode(rpxmax2_,igrid)-rnode(rpxmin2_,igrid))
+      endif
+      n3grid=nint(zlength/d3grid)
+      do i3grid=1,n3grid !subcycles
+      select case(convert_type)
+       case('vtuB23')
+         ! we write out every grid as one VTK PIECE
+         write(qunit,'(a,i7,a,i7,a)') '<Piece NumberOfPoints="',np,&
+            '" NumberOfCells="',nc,'">'
+         write(qunit,'(a)')'<PointData>'
+         do iw=1,nw
+            if(.not.w_write(iw))cycle
+            write(qunit,'(a,a,a,i16,a)')'<DataArray type="Float32" Name="',&
+               TRIM(wnamei(iw)), '" format="appended" offset="',offset,'">'
+            write(qunit,'(a)')'</DataArray>'
+            offset=offset+length+size_int
+         enddo
+         if(nwauxio>0)then
+          do iw=nw+1,nw+nwauxio
+             write(qunit,'(a,a,a,i16,a)')'<DataArray type="Float32" Name="',&
+                TRIM(wnamei(iw)), '" format="appended" offset="',offset,'">'
+             write(qunit,'(a)')'</DataArray>'
+             offset=offset+length+size_int
+          enddo
+         endif
+         write(qunit,'(a)')'</PointData>'
+
+         write(qunit,'(a)')'<Points>'
+         write(qunit,'(a,i16,a)') &
+'<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="',&
+            offset,'"/>'
+         ! write cell corner coordinates in a backward dimensional loop, always 3D output
+         offset=offset+length_coords+size_int
+         write(qunit,'(a)')'</Points>'
+       case('vtuBCC23')
+         ! we write out every grid as one VTK PIECE
+         write(qunit,'(a,i7,a,i7,a)') '<Piece NumberOfPoints="',np,&
+            '" NumberOfCells="',nc,'">'
+         write(qunit,'(a)')'<CellData>'
+         do iw=1,nw
+            if(.not.w_write(iw))cycle
+            write(qunit,'(a,a,a,i16,a)')'<DataArray type="Float32" Name="',&
+               TRIM(wnamei(iw)), '" format="appended" offset="',offset,'">'
+            write(qunit,'(a)')'</DataArray>'
+            offset=offset+lengthcc+size_int
+         enddo
+         if(nwauxio>0)then
+          do iw=nw+1,nw+nwauxio
+             write(qunit,'(a,a,a,i16,a)')'<DataArray type="Float32" Name="',&
+                TRIM(wnamei(iw)), '" format="appended" offset="',offset,'">'
+             write(qunit,'(a)')'</DataArray>'
+             offset=offset+lengthcc+size_int
+          enddo
+         endif
+         write(qunit,'(a)')'</CellData>'
+
+         write(qunit,'(a)')'<Points>'
+         write(qunit,'(a,i16,a)') &
+'<DataArray type="Float32" NumberOfComponents="3" format="appended" offset="',&
+            offset,'"/>'
+         ! write cell corner coordinates in a backward dimensional loop, always 3D output
+         offset=offset+length_coords+size_int
+         write(qunit,'(a)')'</Points>'
+      end select
+
+      write(qunit,'(a)')'<Cells>'
+
+      ! connectivity part
+      write(qunit,'(a,i16,a)')&
+'<DataArray type="Int32" Name="connectivity" format="appended" offset="',&
+         offset,'"/>'
+      offset=offset+length_conn+size_int
+
+      ! offsets data array
+      write(qunit,'(a,i16,a)') &
+         '<DataArray type="Int32" Name="offsets" format="appended" offset="',&
+         offset,'"/>'
+      offset=offset+length_offsets+size_int
+
+      ! VTK cell type data array
+      write(qunit,'(a,i16,a)') &
+         '<DataArray type="Int32" Name="types" format="appended" offset="',&
+         offset,'"/>'
+      offset=offset+size_length+nc*size_int
+
+      write(qunit,'(a)')'</Cells>'
+
+      write(qunit,'(a)')'</Piece>'
+      enddo !subcycles
+    endif
+   enddo
+ endif
+enddo
+
+write(qunit,'(a)')'</UnstructuredGrid>'
+write(qunit,'(a)')'<AppendedData encoding="raw">'
+
+close(qunit)
+open(qunit,file=filename,form='unformatted',access='stream',status='old',position='append')
+buffer='_'
+write(qunit) TRIM(buffer)
+
+do level=levmin,levmax
+ if (writelevel(level)) then
+   do iigrid=1,igridstail; igrid=igrids(iigrid);
+      if (node(plevel_,igrid)/=level) cycle
+      block=>ps(igrid)
+      ! only output a grid when fully within clipped region selected
+      ! by writespshift array
+      if ((rnode(rpxmin1_,igrid)>=xprobmin1+(xprobmax1-xprobmin1)&
+         *writespshift(1,1).and.rnode(rpxmin2_,igrid)>=xprobmin2&
+         +(xprobmax2-xprobmin2)*writespshift(2,1))&
+         .and.(rnode(rpxmax1_,igrid)<=xprobmax1-(xprobmax1-xprobmin1)&
+         *writespshift(1,2).and.rnode(rpxmax2_,igrid)<=xprobmax2-(xprobmax2&
+         -xprobmin2)*writespshift(2,2))) then
+        if(dimRepeat==1) then
+          d3grid=zgridsc*(rnode(rpxmax1_,igrid)-rnode(rpxmin1_,igrid))
+        else
+          d3grid=zgridsc*(rnode(rpxmax2_,igrid)-rnode(rpxmin2_,igrid))
+        endif   
+
+
        n3grid=nint(zlength/d3grid)
        ! In case primitives to be saved: use primitive subroutine
        !  extra layer around mesh only needed when storing corner values and averaging
@@ -3414,7 +4259,7 @@ do level=levmin,levmax
        do i3grid=1,n3grid !subcycles
         call calc_grid23(qunit,igrid,xC_TMP,xCC_TMP,wC_TMP,wCC_TMP,normconv,&
            ixCmin1,ixCmin2,ixCmin3,ixCmax1,ixCmax2,ixCmax3,ixCCmin1,ixCCmin2,&
-           ixCCmin3,ixCCmax1,ixCCmax2,ixCCmax3,.true.,i3grid,d3grid,w,zlength,zgridsc)
+           ixCCmin3,ixCCmax1,ixCCmax2,ixCCmax3,.true.,i3grid,d3grid,w,zlength,zgridsc,dimRepeat)
         do iw=1,nw
           if(.not.w_write(iw))cycle
           select case(convert_type)
@@ -3828,7 +4673,7 @@ do level=levmin,levmax
        do i3grid=1,n3grid !subcycles
         call calc_grid23(qunit,igrid,xC_TMP,xCC_TMP,wC_TMP,wCC_TMP,normconv,&
            ixCmin1,ixCmin2,ixCmin3,ixCmax1,ixCmax2,ixCmax3,ixCCmin1,ixCCmin2,&
-           ixCCmin3,ixCCmax1,ixCCmax2,ixCCmax3,.true.,i3grid,d3grid,w,zlength,zgridsc)
+           ixCCmin3,ixCCmax1,ixCCmax2,ixCCmax3,.true.,i3grid,d3grid,w,zlength,zgridsc,1)
         !! original domain ----------------------------------start 
         do iw=1,nw
           if(.not.w_write(iw))cycle
@@ -3989,10 +4834,13 @@ write(qunit,'(a)')'</AppendedData>'
 write(qunit,'(a)')'</VTKFile>'
 close(qunit)
 end subroutine unstructuredvtkBsym23
+
+
+
 !=============================================================================
 subroutine calc_grid23(qunit,igrid,xC_TMP,xCC_TMP,wC_TMP,wCC_TMP,normconv,&
 ixCmin1,ixCmin2,ixCmin3,ixCmax1,ixCmax2,ixCmax3,ixCCmin1,ixCCmin2,ixCCmin3,&
- ixCCmax1,ixCCmax2,ixCCmax3,first,i3grid,d3grid,w,zlength,zgridsc)
+ ixCCmax1,ixCCmax2,ixCCmax3,first,i3grid,d3grid,w,zlength,zgridsc,dimRepeat)
 
 ! this subroutine computes both corner as well as cell-centered values
 ! it handles how we do the center to corner averaging, as well as 
@@ -4010,6 +4858,7 @@ integer :: nx1,nx2,nx3, nxC1,nxC2,nxC3, ix1,ix2,ix3, ix, iw, level, idir
 integer :: ixCmin1,ixCmin2,ixCmin3,ixCmax1,ixCmax2,ixCmax3,ixCCmin1,&
    ixCCmin2,ixCCmin3,ixCCmax1,ixCCmax2,ixCCmax3,nxCC1,nxCC2,nxCC3
 double precision :: dx1,dx2,dx3,d3grid,zlength,zgridsc
+integer, intent(in)  :: dimRepeat
 
 integer :: idims,jxCmin1,jxCmin2,jxCmin3,jxCmax1,jxCmax2,jxCmax3
 double precision :: ldw(ixGlo1:ixGhi1,ixGlo2:ixGhi2,ixGlo1:ixGhi1),&
@@ -4042,9 +4891,26 @@ logical, save :: subfirst=.true.
 !-----------------------------------------------------------------------------
 ! following only for allowing compiler to go through with debug on
 
-nx1=ixMhi1-ixMlo1+1;nx2=ixMhi2-ixMlo2+1;nx3=ixMhi1-ixMlo1+1;
+nx1=ixMhi1-ixMlo1+1;nx2=ixMhi2-ixMlo2+1;
+! coordinates of cell centers
+ixCCmin1=ixMlo1;ixCCmin2=ixMlo2;
+ixCCmax1=ixMhi1;ixCCmax2=ixMhi2;
+! coordinates of cell corners
+ixCmin1=ixMlo1-1;ixCmin2=ixMlo2-1;
+ixCmax1=ixMhi1;ixCmax2=ixMhi2;
+if(dimRepeat==1) then
+  nx3=ixMhi1-ixMlo1+1
+  ixCCmin3=ixMlo1;ixCCmax3=ixMhi1;
+  ixCmin3=ixMlo1-1;ixCmax3=ixMhi1;
+else
+  nx3=ixMhi2-ixMlo1+2
+  ixCCmin3=ixMlo2;ixCCmax3=ixMhi2;
+  ixCmin3=ixMlo2-1;ixCmax3=ixMhi2;
+endif
 level=node(plevel_,igrid)
-dx1=dx(1,level);dx2=dx(2,level);dx3=zgridsc*dx(1,level);
+dx1=dx(1,level);dx2=dx(2,level);dx3=zgridsc*dx(dimRepeat,level);
+nxCC1=nx1;nxCC2=nx2;nxCC3=nx3;
+nxC1=nx1+1;nxC2=nx2+1;nxC3=nx3+1;
 
 ! for normalization within the code
 if(saveprim) then
@@ -4060,10 +4926,6 @@ else
   if (nw>=2+3) normconv(2+3:nw)=w_convert_factor(2+3:nw)
 end if
 
-! coordinates of cell centers
-nxCC1=nx1;nxCC2=nx2;nxCC3=nx3;
-ixCCmin1=ixMlo1;ixCCmin2=ixMlo2;ixCCmin3=ixMlo1; ixCCmax1=ixMhi1
-ixCCmax2=ixMhi2;ixCCmax3=ixMhi1;
 do ix=ixCCmin1,ixCCmax1
     xCC(ix,ixCCmin2:ixCCmax2,ixCCmin3:ixCCmax3,1)=rnode(rpxmin1_,igrid)&
        +(dble(ix-ixCCmin1)+half)*dx1
@@ -4077,10 +4939,6 @@ do ix=ixCCmin3,ixCCmax3
        dble(i3grid-1)*d3grid+(dble(ix-ixCCmin3)+half)*dx3
 end do
 
-! coordinates of cell corners
-nxC1=nx1+1;nxC2=nx2+1;nxC3=nx3+1;
-ixCmin1=ixMlo1-1;ixCmin2=ixMlo2-1;ixCmin3=ixMlo1-1; ixCmax1=ixMhi1
-ixCmax2=ixMhi2;ixCmax3=ixMhi1;
 do ix=ixCmin1,ixCmax1
     xC(ix,ixCmin2:ixCmax2,ixCmin3:ixCmax3,1)=rnode(rpxmin1_,igrid)&
        +dble(ix-ixCmin1)*dx1
@@ -4102,40 +4960,70 @@ if (nwextra>0) then
  do idims=1,3
   select case(idims)
    case(1)
-     jxCmin1=ixGhi1+1-nghostcells;jxCmin2=ixGlo2;jxCmin3=ixGlo1;
-     jxCmax1=ixGhi1;jxCmax2=ixGhi2;jxCmax3=ixGhi1;
+     if(dimRepeat==1) then
+        jxCmin3=ixGlo1;jxCmax3=ixGhi1;
+     else
+        jxCmin3=ixGlo2;jxCmax3=ixGhi2;
+     endif   
+     jxCmin1=ixGhi1+1-nghostcells;jxCmin2=ixGlo2;
+     jxCmax1=ixGhi1;jxCmax2=ixGhi2;
      do ix1=jxCmin1,jxCmax1
          w(ix1,jxCmin2:jxCmax2,jxCmin3:jxCmax3,nw-nwextra+1:nw) = w(jxCmin1&
             -1,jxCmin2:jxCmax2,jxCmin3:jxCmax3,nw-nwextra+1:nw)
      end do
-     jxCmin1=ixGlo1;jxCmin2=ixGlo2;jxCmin3=ixGlo1;
-     jxCmax1=ixGlo1-1+nghostcells;jxCmax2=ixGhi2;jxCmax3=ixGhi1;
+     if(dimRepeat==1) then
+        jxCmin3=ixGlo1;jxCmax3=ixGhi1;
+     else
+        jxCmin3=ixGlo2;jxCmax3=ixGhi2;
+     endif   
+     jxCmin1=ixGlo1;jxCmin2=ixGlo2;
+     jxCmax1=ixGlo1-1+nghostcells;jxCmax2=ixGhi2;
      do ix1=jxCmin1,jxCmax1
          w(ix1,jxCmin2:jxCmax2,jxCmin3:jxCmax3,nw-nwextra+1:nw) = w(jxCmax1&
             +1,jxCmin2:jxCmax2,jxCmin3:jxCmax3,nw-nwextra+1:nw)
      end do
    case(2)
-     jxCmin1=ixGlo1;jxCmin2=ixGhi2+1-nghostcells;jxCmin3=ixGlo1;
-     jxCmax1=ixGhi1;jxCmax2=ixGhi2;jxCmax3=ixGhi1;
+     if(dimRepeat==1) then
+        jxCmin3=ixGlo1;jxCmax3=ixGhi1;
+     else
+        jxCmin3=ixGlo2;jxCmax3=ixGhi2;
+     endif   
+     jxCmin1=ixGlo1;jxCmin2=ixGhi2+1-nghostcells;
+     jxCmax1=ixGhi1;jxCmax2=ixGhi2;
      do ix2=jxCmin2,jxCmax2
          w(jxCmin1:jxCmax1,ix2,jxCmin3:jxCmax3,nw-nwextra+1:nw) &
             = w(jxCmin1:jxCmax1,jxCmin2-1,jxCmin3:jxCmax3,nw-nwextra+1:nw)
      end do
-     jxCmin1=ixGlo1;jxCmin2=ixGlo2;jxCmin3=ixGlo1;
-     jxCmax1=ixGhi1;jxCmax2=ixGlo2-1+nghostcells;jxCmax3=ixGhi1;
+     if(dimRepeat==1) then
+      jxCmin3=ixGlo1;jxCmax3=ixGhi1;
+     else
+      jxCmin3=ixGlo2;jxCmax3=ixGhi2;
+     endif   
+     jxCmin1=ixGlo1;jxCmin2=ixGlo2;
+     jxCmax1=ixGhi1;jxCmax2=ixGlo2-1+nghostcells;
      do ix2=jxCmin2,jxCmax2
          w(jxCmin1:jxCmax1,ix2,jxCmin3:jxCmax3,nw-nwextra+1:nw) &
             = w(jxCmin1:jxCmax1,jxCmax2+1,jxCmin3:jxCmax3,nw-nwextra+1:nw)
      end do
    case(3)
-     jxCmin1=ixGlo1;jxCmin2=ixGlo2;jxCmin3=ixGhi1+1-nghostcells;
-     jxCmax1=ixGhi1;jxCmax2=ixGhi2;jxCmax3=ixGhi1;
+     if(dimRepeat==1) then
+        jxCmin3=ixGhi1+1-nghostcells;jxCmax3=ixGhi1;
+     else
+        jxCmin3=ixGhi2+1-nghostcells;jxCmax3=ixGhi2;
+     endif   
+     jxCmin1=ixGlo1;jxCmin2=ixGlo2;
+     jxCmax1=ixGhi1;jxCmax2=ixGhi2;
      do ix3=jxCmin3,jxCmax3
          w(jxCmin1:jxCmax1,jxCmin2:jxCmax2,ix3,nw-nwextra+1:nw) &
             = w(jxCmin1:jxCmax1,jxCmin2:jxCmax2,jxCmin3-1,nw-nwextra+1:nw)
      end do
-     jxCmin1=ixGlo1;jxCmin2=ixGlo2;jxCmin3=ixGlo1;
-     jxCmax1=ixGhi1;jxCmax2=ixGhi2;jxCmax3=ixGlo1-1+nghostcells;
+     if(dimRepeat==1) then
+        jxCmin3=ixGlo1;jxCmax3=ixGlo1-1+nghostcells;
+     else
+        jxCmin3=ixGlo2;jxCmax3=ixGlo2-1+nghostcells;
+     endif   
+     jxCmin1=ixGlo1;jxCmin2=ixGlo2;
+     jxCmax1=ixGhi1;jxCmax2=ixGhi2;
      do ix3=jxCmin3,jxCmax3
          w(jxCmin1:jxCmax1,jxCmin2:jxCmax2,ix3,nw-nwextra+1:nw) &
             = w(jxCmin1:jxCmax1,jxCmin2:jxCmax2,jxCmax3+1,nw-nwextra+1:nw)
