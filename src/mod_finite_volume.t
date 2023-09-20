@@ -122,7 +122,7 @@ contains
     double precision, dimension(ixI^S,1:number_species)      :: cmaxC
     double precision, dimension(ixI^S,1:number_species)      :: cminC
     double precision, dimension(ixI^S)      :: Hspeed
-    double precision, dimension(ixI^S)      :: inv_volume
+    double precision, dimension(ixO^S)      :: inv_volume
     double precision, dimension(1:ndim)     :: dxinv
     integer, dimension(ixI^S)               :: patchf
     integer :: idims, iw, ix^L, hxO^L, ixC^L, ixCR^L, kxC^L, kxR^L, ii
@@ -253,7 +253,7 @@ contains
 
       end do ! Next idims
     else
-      inv_volume = 1.d0/block%dvolume(ixI^S)
+      inv_volume = 1.d0/block%dvolume(ixO^S)
       do idims= idims^LIM
          hxO^L=ixO^L-kr(idims,^D);
 
