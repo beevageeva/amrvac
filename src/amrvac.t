@@ -84,6 +84,11 @@ program amrvac
      if(convert .and. level_io>0 .or. level_io_min.ne.1 .or. level_io_max.ne.nlevelshi) &
        call resettree_convert
 
+     {^NOONED
+     ! improve initial condition after restart and modification
+     if(firstprocess) call improve_initial_condition()
+     }
+
      if (use_multigrid) call mg_setup_multigrid()
 
      if(use_particles) then
