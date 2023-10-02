@@ -44,14 +44,14 @@ jobs:
           enable_jekyll: false
           full_commit_message: "deploy ${{ github.sha }}: ${{ github.event.head_commit.message }}"
 
-    - name: Deploy dev website
-      uses: peaceiris/actions-gh-pages@v3
-      if: ${{ contains(github.ref, 'refs/heads/amrvac3.1') }}
-      with:
-          deploy_key: ${{ secrets.DOCS_DEV_ACTIONS_DEPLOY_KEY }}
-          external_repository: amrvac/dev.amrvac.org
-          publish_branch: main
-          publish_dir: doc/html
-          cname: dev.amrvac.org
-          enable_jekyll: false
-          full_commit_message: "dev: deploy amrvac/amrvac@${{ github.sha }}"
+#    - name: Deploy dev website
+#      uses: peaceiris/actions-gh-pages@v3
+#      if: ${{ contains(github.ref, 'refs/heads/amrvac3.1') }}
+#      with:
+#          deploy_key: ${{ secrets.DOCS_DEV_ACTIONS_DEPLOY_KEY }}
+#          external_repository: amrvac/dev.amrvac.org
+#          publish_branch: main
+#          publish_dir: doc/html
+#          cname: dev.amrvac.org
+#          enable_jekyll: false
+#          full_commit_message: "dev: deploy amrvac/amrvac@${{ github.sha }}"
