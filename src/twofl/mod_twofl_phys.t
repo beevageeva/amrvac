@@ -239,6 +239,7 @@ module mod_twofl_phys
   public :: get_normalized_divb
   public :: b_from_vector_potential
   public :: usr_mask_gamma_ion_rec
+  public :: usr_mask_alpha
 
   {^NOONED
   public :: twofl_clean_divb_multigrid
@@ -254,19 +255,28 @@ module mod_twofl_phys
 
     end subroutine implicit_mult_factor_subroutine
 
-    subroutine mask_subroutine(ixI^L,ixO^L,w,x,res1, res2)
+    subroutine mask_subroutine(ixI^L,ixO^L,w,x,res)
+      use mod_global_parameters
+      integer, intent(in) :: ixI^L, ixO^L
+      double precision, intent(in) :: x(ixI^S,1:ndim)
+      double precision, intent(in) :: w(ixI^S,1:nw)
+      double precision, intent(inout) :: res(ixI^S)
+    end subroutine mask_subroutine
+
+    subroutine mask_subroutine2(ixI^L,ixO^L,w,x,res1, res2)
       use mod_global_parameters
       integer, intent(in) :: ixI^L, ixO^L
       double precision, intent(in) :: x(ixI^S,1:ndim)
       double precision, intent(in) :: w(ixI^S,1:nw)
       double precision, intent(inout) :: res1(ixI^S),res2(ixI^S)
-    end subroutine mask_subroutine
+    end subroutine mask_subroutine2
 
   end interface
 
    procedure (implicit_mult_factor_subroutine), pointer :: calc_mult_factor => null()
    integer, protected ::  twofl_implicit_calc_mult_method = 1
-  procedure(mask_subroutine), pointer  :: usr_mask_gamma_ion_rec => null()
+  procedure(mask_subroutine), pointer  :: usr_mask_alpha => null()
+  procedure(mask_subroutine2), pointer  :: usr_mask_gamma_ion_rec => null()
 
 contains
 
@@ -6716,8 +6726,6 @@ contains
     end if
   end subroutine get_gamma_ion_rec
 
-
-
   subroutine get_alpha_coll(ixI^L, ixO^L, w, x, alpha)
     use mod_global_parameters
     integer, intent(in)                :: ixI^L, ixO^L
@@ -6729,6 +6737,9 @@ contains
     else
       call get_alpha_coll_plasma(ixI^L, ixO^L, w, x, alpha)
     endif
+    if (associated(usr_mask_alpha)) then
+      call usr_mask_alpha(ixI^L,ixO^L,w,x,alpha)
+    end if
   end subroutine get_alpha_coll
 
   subroutine get_alpha_coll_plasma(ixI^L, ixO^L, w, x, alpha)

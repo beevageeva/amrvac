@@ -105,7 +105,8 @@ contains
       if(periodB(ndim)) then
         if(phi_/=3) call mpistop("phi_ should be 3 in 3D spherical coord!")
         if(mod(ng3(1),2)/=0) &
-             call mpistop("Number of meshes in phi-direction should be even!")
+             print*,"Number of meshes in phi-direction should be even!"
+             !call mpistop("Number of meshes in phi-direction should be even!")
         if(abs(xprobmin2)<smalldouble) then
           if(mype==0) write(unitterm,*) &
                "Will apply pi-periodic conditions at northpole!"

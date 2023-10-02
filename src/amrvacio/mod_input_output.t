@@ -1516,7 +1516,8 @@ contains
            if(mod(block_nx^D,2)==1) &
              call mpistop("stretched grid needs even block size block_nxD")
            if(mod(domain_nx^D/block_nx^D,2)/=0) &
-             call mpistop("number level 1 blocks in D must be even")
+             print*,"number level 1 blocks in D must be even"
+             !call mpistop("number level 1 blocks in D must be even")
            qstretch(1,^D)=qstretch_baselevel(^D)
            dxfirst(1,^D)=(xprobmax^D-xprobmin^D) &
                 *(1.0d0-qstretch(1,^D))/(1.0d0-qstretch(1,^D)**domain_nx^D)
