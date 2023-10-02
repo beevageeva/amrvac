@@ -55,6 +55,7 @@ amrvac.o: mod_fix_conserve.mod
 amrvac.o: mod_ghostcells_update.mod
 amrvac.o: mod_initialize.mod
 amrvac.o: mod_input_output.mod
+amrvac.o: mod_input_output_helper.mod
 amrvac.o: mod_multigrid_coupling.mod
 amrvac.o: mod_particles.mod
 amrvac.o: mod_physics.mod
@@ -93,6 +94,7 @@ mod_ard_phys.o: mod_multigrid_coupling.mod
 mod_ard_phys.o: mod_particles.mod
 mod_ard_phys.o: mod_physics.mod
 mod_bc_data.o: mod_lookup_table.mod
+mod_bc_data.o: mod_physics.mod
 mod_bremsstrahlung.o: mod_physics.mod
 mod_cak_force.o: mod_physics.mod
 mod_calculate_xw.o: mod_geometry.mod
@@ -342,6 +344,7 @@ mod_supertimestepping.o: mod_physics.mod
 mod_supertimestepping.o: mod_small_values.mod
 mod_thermal_conduction.o: mod_fix_conserve.mod
 mod_thermal_conduction.o: mod_geometry.mod
+mod_thermal_emission.o: mod_geometry.mod
 mod_thermal_emission.o: mod_physics.mod
 mod_trac.o: mod_mhd.mod
 mod_trac.o: mod_trace_field.mod
