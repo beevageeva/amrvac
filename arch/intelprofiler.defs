@@ -1,0 +1,6 @@
+F90 = mpiifort
+FFLAGS = -c
+#F90FLAGS = -fpp -free  -implicitnone  -traceback -check nooutput_conversion -g -xHost  -qopenmp -parallel-source-info=2
+F90FLAGS = -fpp -free  -implicitnone  -traceback -check nooutput_conversion -g -xHost   -parallel-source-info=2
+#F90FLAGS = -fpp -free  -implicitnone -O2 -traceback -check nooutput_conversion  -xHost  
+LINK= $(F90)  $(F90FLAGS) 
