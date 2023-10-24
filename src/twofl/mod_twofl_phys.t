@@ -3578,6 +3578,7 @@ contains
     double precision, intent(in)  :: x(ixI^S,1:ndim)
     double precision, intent(out) :: pth(ixI^S)
 
+
     if(phys_energy) then
       if(has_equi_pe_n0) then
         pth(ixO^S) = w(ixO^S,e_n_) + block%equi_vars(ixO^S,equi_pe_n0_,b0i)
@@ -3588,6 +3589,7 @@ contains
       call get_rhon_tot(w,x,ixI^L,ixO^L,pth)
       pth(ixO^S)=twofl_adiab*pth(ixO^S)**twofl_gamma
     end if
+
   end subroutine twofl_get_pthermal_n_primitive
 
   !> Calculate v component
@@ -4577,7 +4579,6 @@ contains
     else if (twofl_eta<zero)then
        call get_current(w,ixI^L,ixO^L,idirmin,current)
        call usr_special_resistivity(w,ixI^L,ixO^L,idirmin,x,current,eta)
-       dtnew=bigdouble
        do idim=1,ndim
          if(slab_uniform) then
            dtnew=min(dtnew,&
@@ -4589,6 +4590,20 @@ contains
        end do
     end if
 
+    !TODO ADDED
+    if(twofl_etah>0) then
+      call get_rhoc_tot(w,x,ixI^L,ixO^L,eta)
+       do idim=1,ndim
+         if(slab_uniform) then
+           dtnew=min(dtnew,&
+                dtdiffpar/(smalldouble+(maxval(twofl_etah/eta(ixO^S))/dxarr(idim)**2)))
+         else
+           dtnew=min(dtnew,&
+                dtdiffpar/(smalldouble+maxval(twofl_etah/eta(ixO^S)/block%ds(ixO^S,idim)**2)))
+         end if
+       end do
+    endif
+    !TODO END ADDED
     if(twofl_eta_hyper>zero) then
       if(slab_uniform) then
         dtnew=min(dtdiffpar*minval(dxarr(1:ndim))**4/twofl_eta_hyper,dtnew)
@@ -6724,6 +6739,9 @@ contains
     if (associated(usr_mask_gamma_ion_rec)) then
       call usr_mask_gamma_ion_rec(ixI^L,ixO^L,w,x,gamma_ion, gamma_rec)
     end if
+
+    !print*, "gamma_ion ", minval(gamma_ion), maxval(gamma_ion)
+    !print*, "gamma_rec ", minval(gamma_rec), maxval(gamma_rec)
   end subroutine get_gamma_ion_rec
 
   subroutine get_alpha_coll(ixI^L, ixO^L, w, x, alpha)
@@ -6740,6 +6758,7 @@ contains
     if (associated(usr_mask_alpha)) then
       call usr_mask_alpha(ixI^L,ixO^L,w,x,alpha)
     end if
+    !print*, "alpha ", minval(alpha), maxval(alpha)
   end subroutine get_alpha_coll
 
   subroutine get_alpha_coll_plasma(ixI^L, ixO^L, w, x, alpha)
@@ -6874,7 +6893,7 @@ contains
       wout(ixO^S,e_n_) = w(ixO^S,e_n_) + tmp(ixO^S) * tmp3(ixO^S)
       wout(ixO^S,e_c_) = w(ixO^S,e_c_) - tmp(ixO^S) * tmp3(ixO^S)
 
-     else 
+    else 
       tmp4(ixO^S) = w(ixO^S,e_n_) 
       tmp5(ixO^S) = w(ixO^S,e_c_) 
       ! calculate velocities, using the already updated variables
@@ -6891,18 +6910,18 @@ contains
                    * dtfactor * qdt 
       wout(ixO^S,e_n_) = w(ixO^S,e_n_) + tmp(ixO^S)*tmp1(ixO^S)
       wout(ixO^S,e_c_) = w(ixO^S,e_c_) + tmp(ixO^S)*tmp2(ixO^S)
-     endif
+    endif
 
     !update internal energy
     if(twofl_coll_inc_te) then
-     if(.not. twofl_equi_thermal) then   
+     !if(.not. twofl_equi_thermal) then   
         if(has_equi_pe_n0) then
           tmp4(ixO^S) = tmp4(ixO^S) + block%equi_vars(ixO^S,equi_pe_n0_,0)*inv_gamma_1  
         endif
         if(has_equi_pe_c0) then
           tmp5(ixO^S) = tmp5(ixO^S) + block%equi_vars(ixO^S,equi_pe_c0_,0)*inv_gamma_1 
         endif
-      endif
+      !endif
 
       tmp(ixO^S) = alpha(ixO^S) *(-rhoc(ixO^S)/Rn * tmp4(ixO^S) + rhon(ixO^S)/Rc * tmp5(ixO^S))
       tmp2(ixO^S) =  alpha(ixO^S) * (rhon(ixO^S)/Rc +  rhoc(ixO^S)/Rn)     
@@ -7064,14 +7083,14 @@ contains
 
     !update internal energy
     if(twofl_coll_inc_te) then
-     if(.not. twofl_equi_thermal) then   
+     !if(.not. twofl_equi_thermal) then   
         if(has_equi_pe_n0) then
           tmp4(ixO^S) = tmp4(ixO^S) + block%equi_vars(ixO^S,equi_pe_n0_,0)*inv_gamma_1  
         endif
         if(has_equi_pe_c0) then
           tmp5(ixO^S) = tmp5(ixO^S) + block%equi_vars(ixO^S,equi_pe_c0_,0)*inv_gamma_1 
         endif
-      endif
+      !endif
 
       tmp(ixO^S) = alpha(ixO^S) *(-rhoc(ixO^S)/Rn * tmp4(ixO^S) + rhon(ixO^S)/Rc * tmp5(ixO^S))
       if(twofl_coll_inc_ionrec) then
@@ -7180,14 +7199,14 @@ contains
 
     !update internal energy
     if(twofl_coll_inc_te) then
-     if(.not. twofl_equi_thermal) then   
+     !if(.not. twofl_equi_thermal) then   
         if(has_equi_pe_n0) then
           tmp4(ixO^S) = tmp4(ixO^S) + block%equi_vars(ixO^S,equi_pe_n0_,0)*inv_gamma_1  
         endif
         if(has_equi_pe_c0) then
           tmp5(ixO^S) = tmp5(ixO^S) + block%equi_vars(ixO^S,equi_pe_c0_,0)*inv_gamma_1 
         endif
-      endif
+      !endif
 
       tmp(ixO^S) = alpha(ixO^S) *(-rhoc(ixO^S)/Rn * tmp4(ixO^S) + rhon(ixO^S)/Rc * tmp5(ixO^S))
       if(twofl_coll_inc_ionrec) then
