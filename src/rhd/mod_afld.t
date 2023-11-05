@@ -1673,6 +1673,7 @@ end subroutine Diffuse_E_rad_mg
 
     integer, intent(in)             :: ixI^L, ixO^L, idir
     integer, intent(in)             :: n
+    integer                         :: ncalc
 
     double precision, intent(in)    :: q(ixI^S), x(ixI^S,1:ndim)
     double precision, intent(out)   :: gradq(ixO^S)
@@ -1689,13 +1690,27 @@ end subroutine Diffuse_E_rad_mg
     !> Using higher order derivatives with wider stencil according to:
     !> https://en.wikipedia.org/wiki/Finite_difference_coefficient
 
-     if (n .gt. nghostcells) then
-       call mpistop("gradientO stencil too wide")
-     elseif (n .eq. 1) then
+     !TODO changed to calculate the actual limits 
+     !if (n .gt. nghostcells) then
+     !  call mpistop("gradientO stencil too wide")
+     !endif 
+     {^IFONED
+      ncalc = min(ixOmin1-ixOmin1,ixOmax1-ixImin1)
+     } 
+     {^IFONED
+      ncalc = min({min(ixOmin^D-ixOmin^D,ixOmax^D-ixImin^D)})
+     } 
+     if (n .gt. ncalc) then
+       if(mype .eq. 0) print*,"gradientO stencil too wide",&
+          " set nghosts= ",ncalc, " instead of ", n
+     else
+        ncalc=n 
+     endif 
+     if (ncalc .eq. 1) then
        hxO^L=ixO^L-kr(idir,^D);
        jxO^L=ixO^L+kr(idir,^D);
        gradq(ixO^S)=(q(jxO^S)-q(hxO^S))/(x(jxO^S,idir)-x(hxO^S,idir))
-     elseif (n .eq. 2) then
+     elseif (ncalc .eq. 2) then
        gradq(ixO^S) = 0.d0
        !> coef 2/3
        hxO^L=ixO^L-kr(idir,^D);
@@ -1707,7 +1722,7 @@ end subroutine Diffuse_E_rad_mg
        gradq(ixO^S) = gradq(ixO^S) - 1.d0/12.d0*(q(jxO^S)-q(hxO^S))
        !> divide by dx
        gradq(ixO^S) = gradq(ixO^S)/dxlevel(idir)
-     elseif (n .eq. 3) then
+     elseif (ncalc .eq. 3) then
        gradq(ixO^S) = 0.d0
        !> coef 3/4
        hxO^L=ixO^L-kr(idir,^D);
