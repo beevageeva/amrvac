@@ -1283,11 +1283,10 @@ contains
 
     double precision   :: vel(ixI^S,1:ndir)
 
-    !TODO optimize
     if(local_timestep) then
-      dtarr = block%dt(ixO^S) * dtfactor
+      dtarr(ixO^S) = block%dt(ixO^S) * dtfactor/x(ixO^S,1)
     else
-      dtarr = qdt
+      dtarr(ixO^S) = qdt/x(ixO^S,1)
     endif  
 
     call  frictional_velocity(wCT,x,ixI^L,ixO^L,vel)
@@ -1298,16 +1297,16 @@ contains
     case (cylindrical)
       if(phi_>0) then
         if(.not.stagger_grid) then
-          w(ixO^S,bphi_)=w(ixO^S,bphi_)+dtarr/x(ixO^S,1)*&
+          w(ixO^S,bphi_)=w(ixO^S,bphi_)+dtarr(ixO^S)*&
                    (wCT(ixO^S,bphi_)*vel(ixO^S,mr_) &
                    -wCT(ixO^S,br_)*vel(ixO^S,mphi_))
         end if
       end if
-      if(mf2_glm) w(ixO^S,br_)=w(ixO^S,br_)+dtarr*wCT(ixO^S,psi_)/x(ixO^S,1)
+      if(mf2_glm) w(ixO^S,br_)=w(ixO^S,br_)+dtarr(ixO^S)*wCT(ixO^S,psi_)
     case (spherical)
        ! b1
        if(mf2_glm) then
-         w(ixO^S,mag(1))=w(ixO^S,mag(1))+dtarr/x(ixO^S,1)*2.0d0*wCT(ixO^S,psi_)
+         w(ixO^S,mag(1))=w(ixO^S,mag(1))+dtarr(ixO^S)*2.0d0*wCT(ixO^S,psi_)
        end if
 
        {^NOONED
@@ -1323,7 +1322,7 @@ contains
            tmp(ixO^S)=tmp(ixO^S) &
                 + dcos(x(ixO^S,2))/dsin(x(ixO^S,2))*wCT(ixO^S,psi_)
          end if
-         w(ixO^S,mag(2))=w(ixO^S,mag(2))+dtarr*tmp(ixO^S)/x(ixO^S,1)
+         w(ixO^S,mag(2))=w(ixO^S,mag(2))+dtarr(ixO^S)*tmp(ixO^S)
        end if
        }
 
@@ -1342,7 +1341,7 @@ contains
                    -vel(ixO^S,2)*block%B0(ixO^S,3,0))*dcos(x(ixO^S,2)) &
                    /dsin(x(ixO^S,2)) }
            end if
-           w(ixO^S,mag(3))=w(ixO^S,mag(3))+dtarr*tmp(ixO^S)/x(ixO^S,1)
+           w(ixO^S,mag(3))=w(ixO^S,mag(3))+dtarr(ixO^S)*tmp(ixO^S)
          end if
        end if
     end select

@@ -176,7 +176,8 @@ subroutine setdt()
     !> compute CFL limited dt (for variable time stepping)
     subroutine getdt_courant(w,ixI^L,ixO^L,dtnew,dx^D,x,cmax_mype,a2max_mype)
       use mod_global_parameters
-      use mod_physics, only: phys_get_cmax,phys_get_a2max,phys_get_tcutoff
+      use mod_physics, only: phys_get_cmax,phys_get_a2max, &
+                             phys_get_tcutoff,phys_get_auxiliary
 
       integer, intent(in) :: ixI^L, ixO^L
       double precision, intent(in) :: x(ixI^S,1:ndim)

@@ -67,16 +67,31 @@ contains
 
       ! Advect w(iw)
       if (slab_uniform) then
-        do iw=1,nwflux
+        if(local_timestep) then
+          do iw=1,nwflux
+            wnew(ixO^S,iw)=wnew(ixO^S,iw)-block%dt(ixO^S)*dtfactor/dxs(idims)* &
+                 (fLC(ixO^S, iw)-fRC(hxO^S, iw))
+          end do
+        else  
+          do iw=1,nwflux
             wnew(ixO^S,iw)=wnew(ixO^S,iw)+dxinv(idims)* &
                  (fLC(ixO^S, iw)-fRC(hxO^S, iw))
-        end do
+          end do
+        endif
       else
-        do iw=1,nwflux
-          wnew(ixO^S,iw)=wnew(ixO^S,iw) - qdt * inv_volume &
-               *(block%surfaceC(ixO^S,idims)*fLC(ixO^S, iw) &
-               -block%surfaceC(hxO^S,idims)*fRC(hxO^S, iw))
-        end do
+        if(local_timestep) then
+          do iw=1,nwflux
+            wnew(ixO^S,iw)=wnew(ixO^S,iw) - block%dt(ixO^S)*dtfactor * inv_volume &
+                 *(block%surfaceC(ixO^S,idims)*fLC(ixO^S, iw) &
+                 -block%surfaceC(hxO^S,idims)*fRC(hxO^S, iw))
+          end do
+        else
+          do iw=1,nwflux
+            wnew(ixO^S,iw)=wnew(ixO^S,iw) - qdt * inv_volume &
+                 *(block%surfaceC(ixO^S,idims)*fLC(ixO^S, iw) &
+                 -block%surfaceC(hxO^S,idims)*fRC(hxO^S, iw))
+          end do
+        end if
       end if
     end do ! next idims
     b0i=0
@@ -234,10 +249,11 @@ contains
       dxinv=-qdt/dxs
       do idims= idims^LIM
         hxO^L=ixO^L-kr(idims,^D);
-
+        ! TODO maybe put if outside loop idims: but too much code is copy pasted
+        ! this is also done in hancock and fd, centdiff in mod_finite_difference
         if(local_timestep) then
            do iw=iwstart,nwflux
-            fC(ixI^S,iw,idims)=-block%dt(ixI^S)/dxs(idims)*fC(ixI^S,iw,idims)
+            fC(ixI^S,iw,idims)=-block%dt(ixI^S)*dtfactor/dxs(idims)*fC(ixI^S,iw,idims)
           enddo
         else
           ! Multiply the fluxes by -dt/dx since Flux fixing expects this
@@ -259,7 +275,7 @@ contains
 
         if(local_timestep) then
            do iw=iwstart,nwflux
-             fC(ixI^S,iw,idims)=-block%dt(ixI^S)*fC(ixI^S,iw,idims)*block%surfaceC(ixI^S,idims)
+             fC(ixI^S,iw,idims)=-block%dt(ixI^S)*dtfactor*fC(ixI^S,iw,idims)*block%surfaceC(ixI^S,idims)
              wnew(ixO^S,iw)=wnew(ixO^S,iw) + (fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims)) * &
                  inv_volume
            end do

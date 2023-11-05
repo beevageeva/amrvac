@@ -2007,9 +2007,14 @@ module mod_radiative_cooling
       else
         lgtp = dlog10(tpoint)
         jl = int((lgtp - fl%lgtcoolmin) / fl%lgstep) + 1
-        Ypoint = fl%Yc(jl)+ (tpoint-fl%tcool(jl)) &
+        if(jl>=1 .and. jl<=fl%ncool)then
+          Ypoint = fl%Yc(jl)+ (tpoint-fl%tcool(jl)) &
                   * (fl%Yc(jl+1)-fl%Yc(jl)) &
                   / (fl%tcool(jl+1)-fl%tcool(jl))
+        else
+          print*, "BUG in RC ", jl, tpoint
+          Ypoint=0d0
+        endif
       end if
 
   !    integer i

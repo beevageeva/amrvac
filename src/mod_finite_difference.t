@@ -105,20 +105,35 @@ contains
       dxinv=-qdt/dxs
       do idims= idims^LIM
         hxO^L=ixO^L-kr(idims,^D);
-        do iw=iwstart,nwflux
-          fC(ixI^S,iw,idims) = dxinv(idims) * fC(ixI^S,iw,idims)
-          wnew(ixO^S,iw)=wnew(ixO^S,iw)+(fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))
-        end do ! iw loop
+        if(local_timestep) then
+          do iw=iwstart,nwflux
+            fC(ixI^S,iw,idims) = -block%dt(ixI^S)*dtfactor/dxs(idims) * fC(ixI^S,iw,idims)
+            wnew(ixO^S,iw)=wnew(ixO^S,iw)+(fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))
+          end do ! iw loop
+        else
+          do iw=iwstart,nwflux
+            fC(ixI^S,iw,idims) = dxinv(idims) * fC(ixI^S,iw,idims)
+            wnew(ixO^S,iw)=wnew(ixO^S,iw)+(fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))
+          end do ! iw loop
+        endif
       end do ! Next idims
     else
       inv_volume=1.d0/block%dvolume(ixO^S)
       do idims= idims^LIM
         hxO^L=ixO^L-kr(idims,^D);
-        do iw=iwstart,nwflux
-          fC(ixI^S,iw,idims)=-qdt*fC(ixI^S,iw,idims)*block%surfaceC(ixI^S,idims)
-          wnew(ixO^S,iw)=wnew(ixO^S,iw)+ &
-               (fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))*inv_volume(ixO^S)
-        end do ! iw loop
+        if(local_timestep) then
+          do iw=iwstart,nwflux
+            fC(ixI^S,iw,idims)=-block%dt(ixI^S)*dtfactor*fC(ixI^S,iw,idims)*block%surfaceC(ixI^S,idims)
+            wnew(ixO^S,iw)=wnew(ixO^S,iw)+ &
+                 (fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))*inv_volume(ixO^S)
+          end do ! iw loop
+        else
+          do iw=iwstart,nwflux
+            fC(ixI^S,iw,idims)=-qdt*fC(ixI^S,iw,idims)*block%surfaceC(ixI^S,idims)
+            wnew(ixO^S,iw)=wnew(ixO^S,iw)+ &
+                 (fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))*inv_volume(ixO^S)
+          end do ! iw loop
+        endif ! local_timestep
       end do ! Next idims
     end if
 
@@ -401,21 +416,37 @@ contains
       dxinv=-qdt/dxs
       do idims= idims^LIM
         hxO^L=ixO^L-kr(idims,^D);
-        do iw=iwstart,nwflux
-          fC(ixI^S,iw,idims)=dxinv(idims)*fC(ixI^S,iw,idims)
-          ! result: f_(i+1/2)-f_(i-1/2) = [-f_(i+2)+8(f_(i+1)-f_(i-1))+f_(i-2)]/12
-          w(ixO^S,iw)=w(ixO^S,iw)+(fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))
-        end do    !next iw
+        if(local_timestep) then
+          do iw=iwstart,nwflux
+            fC(ixI^S,iw,idims)=-block%dt(ixI^S)*dtfactor/dxs(idims)*fC(ixI^S,iw,idims)
+            ! result: f_(i+1/2)-f_(i-1/2) = [-f_(i+2)+8(f_(i+1)-f_(i-1))+f_(i-2)]/12
+            w(ixO^S,iw)=w(ixO^S,iw)+(fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))
+          end do    !next iw
+        else
+          do iw=iwstart,nwflux
+            fC(ixI^S,iw,idims)=dxinv(idims)*fC(ixI^S,iw,idims)
+            ! result: f_(i+1/2)-f_(i-1/2) = [-f_(i+2)+8(f_(i+1)-f_(i-1))+f_(i-2)]/12
+            w(ixO^S,iw)=w(ixO^S,iw)+(fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))
+          end do    !next iw
+        endif
       end do ! Next idims
     else
       inv_volume=1.d0/block%dvolume
       do idims= idims^LIM
         hxO^L=ixO^L-kr(idims,^D);
-        do iw=iwstart,nwflux
-          fC(ixI^S,iw,idims)=-qdt*block%surfaceC(ixI^S,idims)*fC(ixI^S,iw,idims)
-          w(ixO^S,iw)=w(ixO^S,iw)+ &
-               (fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))*inv_volume(ixO^S)
-        end do    !next iw
+        if(local_timestep) then
+          do iw=iwstart,nwflux
+            fC(ixI^S,iw,idims)=-block%dt(ixI^S)*dtfactor*block%surfaceC(ixI^S,idims)*fC(ixI^S,iw,idims)
+            w(ixO^S,iw)=w(ixO^S,iw)+ &
+                 (fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))*inv_volume(ixO^S)
+          end do    !next iw
+        else
+          do iw=iwstart,nwflux
+            fC(ixI^S,iw,idims)=-qdt*block%surfaceC(ixI^S,idims)*fC(ixI^S,iw,idims)
+            w(ixO^S,iw)=w(ixO^S,iw)+ &
+                 (fC(ixO^S,iw,idims)-fC(hxO^S,iw,idims))*inv_volume(ixO^S)
+          end do    !next iw
+        endif 
       end do ! Next idims
     end if
 
