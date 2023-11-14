@@ -1394,6 +1394,17 @@ module mod_radiative_cooling
 
       double precision, allocatable, dimension(:^D&) :: Lequi
 
+      !DEBUG
+      integer :: ix^D,iw
+      {do ix^DB = ixO^LIM^DB\}
+        do iw=1,nw
+        if(isnan(wCT(ix^D,iw))) then
+          print*, iw, " HASNaN  at x=", x(ix^D,:) 
+        endif
+        enddo
+      {end do\}
+      !END DEBUG
+
       if(qsourcesplit .eqv.fl%rc_split) then
         active = .true.
         select case(fl%coolmethod)
@@ -1900,6 +1911,10 @@ module mod_radiative_cooling
            L1 = min(L1,Lmax)
            w(ix^D,fl%e_) = w(ix^D,fl%e_)-L1*qdt
          else
+           if(isnan(Te(ix^D))) then
+              print*, mype, " NAN te at ", ix^D, &
+                " RHO = ", rho(ix^D)
+           endif  
            call findY(Te(ix^D),Y1,fl)
            Y2 = Y1 + fact*rho(ix^D)*rc_gamma_1
            call findT(Tlocal2,Y2,fl)

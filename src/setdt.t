@@ -198,8 +198,13 @@ subroutine setdt()
       ! local timestep dt has to be calculated in the 
       ! extended region because of the calculation from the
       ! div fluxes in mod_finite_volume
-      hxOmin^D=ixOmin^D-1; 
-      hxOmax^D=ixOmax^D; 
+      if(local_timestep) then
+        hxOmin^D=ixOmin^D-1; 
+        hxOmax^D=ixOmax^D; 
+      else
+        hxOmin^D=ixOmin^D; 
+        hxOmax^D=ixOmax^D; 
+      endif  
 
       if(need_global_a2max) then
         call phys_get_a2max(w,x,ixI^L,ixO^L,a2max)
@@ -263,6 +268,7 @@ subroutine setdt()
         endif
 
       case (type_summax)
+        !TODO this should be mod_input_output?
         if(local_timestep) then
           call mpistop("Type courant summax incompatible with local_timestep")
         endif  

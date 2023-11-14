@@ -4311,6 +4311,11 @@ contains
     logical, intent(in)             :: qsourcesplit
     logical, intent(inout)            :: active
 
+    !TODO local_timestep support is only added for splitting
+    ! but not for other nonideal terms such gravity, RC, viscosity,..
+    ! it will also only work for divbfix  'linde', which does not require
+    ! modification as it does not use dt in the update
+
     if (.not. qsourcesplit) then
       if(mhd_internal_e) then
         ! Source for solving internal energy
@@ -4319,14 +4324,14 @@ contains
       else
         if(has_equi_pe0) then
           active = .true.
-          call add_pe0_divv(qdt,ixI^L,ixO^L,wCT,w,x)
+          call add_pe0_divv(qdt,dtfactor,ixI^L,ixO^L,wCT,w,x)
         end if
       end if
 
       ! Source for B0 splitting
       if (B0field) then
         active = .true.
-        call add_source_B0split(qdt,ixI^L,ixO^L,wCT,w,x)
+        call add_source_B0split(qdt,dtfactor,ixI^L,ixO^L,wCT,w,x)
       end if
 
       ! Sources for resistivity in eqs. for e, B1, B2 and B3
@@ -4456,12 +4461,12 @@ contains
 
   end subroutine mhd_add_source
 
-  subroutine add_pe0_divv(qdt,ixI^L,ixO^L,wCT,w,x)
+  subroutine add_pe0_divv(qdt,dtfactor,ixI^L,ixO^L,wCT,w,x)
     use mod_global_parameters
     use mod_geometry
 
     integer, intent(in)             :: ixI^L, ixO^L
-    double precision, intent(in)    :: qdt
+    double precision, intent(in)    :: qdt,dtfactor
     double precision, intent(in)    :: wCT(ixI^S,1:nw), x(ixI^S,1:ndim)
     double precision, intent(inout) :: w(ixI^S,1:nw)
     double precision                :: v(ixI^S,1:ndir)
@@ -4478,8 +4483,11 @@ contains
     else
      call divvector(v,ixI^L,ixO^L,divv)
     end if
-    w(ixO^S,e_)=w(ixO^S,e_)-qdt*block%equi_vars(ixO^S,equi_pe0_,0)*divv(ixO^S)
-
+    if(local_timestep) then
+      w(ixO^S,e_)=w(ixO^S,e_)-dtfactor*block%dt(ixO^S)*block%equi_vars(ixO^S,equi_pe0_,0)*divv(ixO^S)
+    else
+      w(ixO^S,e_)=w(ixO^S,e_)-qdt*block%equi_vars(ixO^S,equi_pe0_,0)*divv(ixO^S)
+    endif
   end subroutine add_pe0_divv
 
   !> Compute the Lorentz force (JxB)
@@ -4618,11 +4626,11 @@ contains
   end subroutine mhd_update_temperature
 
   !> Source terms after split off time-independent magnetic field
-  subroutine add_source_B0split(qdt,ixI^L,ixO^L,wCT,w,x)
+  subroutine add_source_B0split(qdt,dtfactor,ixI^L,ixO^L,wCT,w,x)
     use mod_global_parameters
 
     integer, intent(in) :: ixI^L, ixO^L
-    double precision, intent(in) :: qdt, wCT(ixI^S,1:nw), x(ixI^S,1:ndim)
+    double precision, intent(in) :: qdt, dtfactor,wCT(ixI^S,1:nw), x(ixI^S,1:ndim)
     double precision, intent(inout) :: w(ixI^S,1:nw)
 
     double precision :: a(ixI^S,3), b(ixI^S,3), axb(ixI^S,3)
@@ -4640,7 +4648,13 @@ contains
         a(ixO^S,idir)=block%J0(ixO^S,idir)
       end do
       call cross_product(ixI^L,ixO^L,a,b,axb)
-      axb(ixO^S,:)=axb(ixO^S,:)*qdt
+      if(local_timestep) then
+        do idir=1,3
+          axb(ixO^S,idir)=axb(ixO^S,idir)*block%dt(ixO^S)*dtfactor
+        enddo
+      else
+        axb(ixO^S,:)=axb(ixO^S,:)*qdt
+      endif
       ! add J0xB0 source term in momentum equations
       w(ixO^S,mom(1:ndir))=w(ixO^S,mom(1:ndir))+axb(ixO^S,1:ndir)
     end if
@@ -4654,7 +4668,13 @@ contains
       ! store velocity in a
       call mhd_get_v(wCT,x,ixI^L,ixO^L,a(ixI^S,1:ndir))
       call cross_product(ixI^L,ixO^L,a,b,axb)
-      axb(ixO^S,:)=axb(ixO^S,:)*qdt
+      if(local_timestep) then
+        do idir=1,3
+          axb(ixO^S,idir)=axb(ixO^S,idir)*block%dt(ixO^S)*dtfactor
+        enddo
+      else
+        axb(ixO^S,:)=axb(ixO^S,:)*qdt
+      endif
       ! add -(vxB) dot J0 source term in energy equation
       do idir=7-2*ndir,3
         w(ixO^S,e_)=w(ixO^S,e_)-axb(ixO^S,idir)*block%J0(ixO^S,idir)
@@ -5461,7 +5481,7 @@ contains
 
     ! 1/rho
     invrho(ixO^S)=1.d0/wCT(ixO^S,rho_)
-    ! include dt in invr, they are always used together
+    ! include dt in invr, invr is always used with qdt
     if(local_timestep) then
       invr(ixO^S) = block%dt(ixO^S) * dtfactor/x(ixO^S,1)
     else
@@ -5582,7 +5602,7 @@ contains
     else
       invrho(ixO^S) = 1d0/wCT(ixO^S,rho_)
     end if
-    ! include dt in invr, they are always used together
+    ! include dt in invr, invr is always used with qdt
     if(local_timestep) then
       invr(ixO^S) = block%dt(ixO^S) * dtfactor/x(ixO^S,1)
     else

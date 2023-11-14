@@ -830,6 +830,8 @@ contains
         call get_EUV_spectrum(unitconvert,te_fl_c)
       case('SIvtiCCmpi','SIvtuCCmpi')
         call get_SXR_image(unitconvert,te_fl_c)
+      case('WIvtiCCmpi','WIvtuCCmpi')
+        call get_whitelight_image(unitconvert,te_fl_c)
       case default
         call mpistop("Error in synthesize emission: Unknown convert_type")
       end select
@@ -3644,8 +3646,6 @@ contains
     integer, intent(in)           :: ixI^L, ixO^L
     double precision, intent(in)  :: w(ixI^S,1:nw), x(ixI^S,1:ndim)
     double precision, intent(out) :: rhoc(ixI^S)
-    integer :: ix^D
-
     if(has_equi_rho_c0) then
       rhoc(ixO^S) = w(ixO^S,rho_c_) + block%equi_vars(ixO^S,equi_rho_c0_,b0i)
     else  

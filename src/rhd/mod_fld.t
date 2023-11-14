@@ -30,8 +30,8 @@ module mod_fld
     double precision, public :: diff_crit
 
     !> Use constant Opacity?
-    character(len=8) :: fld_opacity_law = 'const'
-    character(len=6) :: fld_opal_table = 'Y09800' !>'xxxxxx'
+    character(len=8)  :: fld_opacity_law = 'const'
+    character(len=50) :: fld_opal_table = 'Y09800' !>'xxxxxx'
 
     !> Diffusion limit lambda = 0.33
     character(len=16) :: fld_fluxlimiter = 'Pomraning'
@@ -117,7 +117,7 @@ module mod_fld
     use mod_global_parameters
     use mod_variables
     use mod_physics
-    use mod_opal_opacity, only: init_opal
+    use mod_opal_opacity, only: init_opal_table
     use mod_multigrid_coupling
 
     double precision, intent(in) :: He_abundance, rhd_gamma
@@ -166,7 +166,7 @@ module mod_fld
     fld_gamma = rhd_gamma
 
     !> Read in opacity table if necesary
-    if (fld_opacity_law .eq. 'opal') call init_opal(He_abundance,fld_opal_table)
+    if (fld_opacity_law .eq. 'opal') call init_opal_table(fld_opal_table)
     if ((fld_opacity_law .eq. 'thomson') .or. (fld_opacity_law .eq. 'fastwind'))  then
       sigma_thomson = 6.6524585d-25
       fld_kappa0 = sigma_thomson/const_mp * (1.+2.*He_abundance)/(1.+4.*He_abundance)
@@ -1437,15 +1437,12 @@ module mod_fld
     !> Using higher order derivatives with wider stencil according to:
     !> https://en.wikipedia.org/wiki/Finite_difference_coefficient
 
-     !TODO changed to calculate the actual limits 
-     !if (n .gt. nghostcells) then
-     !  call mpistop("gradientO stencil too wide")
-     !endif 
+     !TODO added this  to calculate the actual limits 
      {^IFONED
-      ncalc = min(ixOmin1-ixOmin1,ixOmax1-ixImin1)
+      ncalc = min(ixOmin1-ixImin1,ixImax1-ixOmax1)
      } 
-     {^IFONED
-      ncalc = min({min(ixOmin^D-ixOmin^D,ixOmax^D-ixImin^D)})
+     {^NOONED
+      ncalc = min({min(ixOmin^D-ixImin^D,ixImax^D-ixOmax^D)})
      } 
      if (n .gt. ncalc) then
        if(mype .eq. 0) print*,"gradientO stencil too wide",&
@@ -1453,6 +1450,10 @@ module mod_fld
      else
         ncalc=n 
      endif 
+     ! not needed 
+     !if (ncalc .gt. nghostcells) then
+     !  call mpistop("gradientO stencil too wide")
+     !endif 
      if (ncalc .eq. 1) then
        hxO^L=ixO^L-kr(idir,^D);
        jxO^L=ixO^L+kr(idir,^D);
@@ -1486,7 +1487,7 @@ module mod_fld
        !> divide by dx
        gradq(ixO^S) = gradq(ixO^S)/dxlevel(idir)
      else
-       call mpistop("gradientO stencil unknown")
+       call mpistop("gradientO stencil unknown ",ncalc)
      endif
 
   end subroutine gradientO
