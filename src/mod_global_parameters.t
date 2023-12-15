@@ -359,7 +359,9 @@ module mod_global_parameters
   logical :: fix_small_values=.false.
 
   !> split magnetic field as background B0 field
+  ! TODO these should be moved in a different file  
   logical :: B0field=.false.
+  logical :: B0fieldAllocCoarse=.false.
 
   ! number of equilibrium set variables, besides the mag field
   integer :: number_equi_vars = 0
@@ -752,5 +754,6 @@ contains
     axb(ixO^S,2)=a(ixO^S,3)*b(ixO^S,1)-a(ixO^S,1)*b(ixO^S,3)
     axb(ixO^S,3)=a(ixO^S,1)*b(ixO^S,2)-a(ixO^S,2)*b(ixO^S,1)
   end subroutine cross_product
+
 
 end module mod_global_parameters

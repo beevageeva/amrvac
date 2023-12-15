@@ -7,6 +7,9 @@
 !> For more information.
 
 module mod_fld
+
+    use mod_comm_lib, only: mpistop
+
     implicit none
 
     !> source split for energy interact and radforce:
@@ -1487,7 +1490,7 @@ module mod_fld
        !> divide by dx
        gradq(ixO^S) = gradq(ixO^S)/dxlevel(idir)
      else
-       call mpistop("gradientO stencil unknown ",ncalc)
+       call mpistop("gradientO stencil unknown ")
      endif
 
   end subroutine gradientO

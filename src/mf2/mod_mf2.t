@@ -1,5 +1,6 @@
 module mod_mf2
   use mod_mf2_phys
+  use mod_functions_Bfield, only: mag
   use mod_amrvac
 
   implicit none

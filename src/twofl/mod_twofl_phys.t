@@ -8,6 +8,8 @@ module mod_twofl_phys
   use mod_thermal_conduction, only: tc_fluid
   use mod_radiative_cooling, only: rc_fluid
   use mod_thermal_emission, only: te_fluid
+  use mod_functions_Bfield, only: get_divb,mag
+
   implicit none
   private
   !! E_c = E_kin + E_mag + E_int
@@ -100,9 +102,6 @@ module mod_twofl_phys
   !> Indices of the GLM psi
   integer, public, protected :: psi_
 
-  !> Indices of the magnetic field
-  integer, allocatable, public :: mag(:)
-
   !> equi vars flags
   logical, public :: has_equi_rho_c0 = .false.  
   logical, public :: has_equi_pe_c0 = .false.  
@@ -132,7 +131,6 @@ module mod_twofl_phys
   logical, public                         :: twofl_coll_inc_te = .true.
   !> whether include ionization/recombination inelastic collisional terms
   logical, public                         :: twofl_coll_inc_ionrec = .false.
-  logical, public                         :: twofl_equi_ionrec = .false.
   logical, public                         :: twofl_equi_thermal_n = .false.
   double precision, public                :: dtcollpar = -1d0 !negative value does not impose restriction on the timestep
   !> whether dump collisional terms in a separte dat file
@@ -294,7 +292,7 @@ contains
       twofl_dump_full_vars, has_equi_rho_c0, has_equi_pe_c0, twofl_hyperdiffusivity,twofl_dump_hyperdiffusivity_coef,&
       has_equi_pe_n0, has_equi_rho_n0, twofl_thermal_conduction_n, twofl_radiative_cooling_n,  &
       twofl_alpha_coll,twofl_alpha_coll_constant,&
-      twofl_coll_inc_te, twofl_coll_inc_ionrec,twofl_equi_ionrec,&
+      twofl_coll_inc_te, twofl_coll_inc_ionrec,&
       twofl_equi_thermal_n,dtcollpar, twofl_te_singlefl,&
       twofl_dump_coll_terms,twofl_implicit_calc_mult_method,&
       boundary_divbfix, boundary_divbfix_skip, twofl_divb_4thorder, &
@@ -4371,41 +4369,6 @@ contains
 
   end subroutine add_source_linde
 
-  !> Calculate div B within ixO
-  subroutine get_divb(w,ixI^L,ixO^L,divb, fourthorder)
-
-    use mod_global_parameters
-    use mod_geometry
-
-    integer, intent(in)             :: ixI^L, ixO^L
-    double precision, intent(in)    :: w(ixI^S,1:nw)
-    double precision, intent(inout) :: divb(ixI^S)
-    logical, intent(in), optional   :: fourthorder
-
-    double precision                   :: bvec(ixI^S,1:ndir)
-    double precision                   :: divb_corner(ixI^S), sign
-    double precision                   :: aux_vol(ixI^S)
-    integer                            :: ixC^L, idir, ic^D, ix^L
-
-    if(stagger_grid) then
-      divb=0.d0
-      do idir=1,ndim
-        ixC^L=ixO^L-kr(idir,^D);
-        divb(ixO^S)=divb(ixO^S)+block%ws(ixO^S,idir)*block%surfaceC(ixO^S,idir)-&
-                                block%ws(ixC^S,idir)*block%surfaceC(ixC^S,idir)
-      end do
-      divb(ixO^S)=divb(ixO^S)/block%dvolume(ixO^S)
-    else
-      bvec(ixI^S,:)=w(ixI^S,mag(:))
-      select case(typediv)
-      case("central")
-        call divvector(bvec,ixI^L,ixO^L,divb,fourthorder)
-      case("limited")
-        call divvectorS(bvec,ixI^L,ixO^L,divb)
-      end select
-    end if
-
-  end subroutine get_divb
 
   !> get dimensionless div B = |divB| * volume / area / |B|
   subroutine get_normalized_divb(w,ixI^L,ixO^L,divb)
@@ -6758,7 +6721,7 @@ contains
     if (associated(usr_mask_alpha)) then
       call usr_mask_alpha(ixI^L,ixO^L,w,x,alpha)
     end if
-    !print*, "alpha ", minval(alpha), maxval(alpha)
+    print*, "alpha ", minval(alpha), maxval(alpha)
   end subroutine get_alpha_coll
 
   subroutine get_alpha_coll_plasma(ixI^L, ixO^L, w, x, alpha)
@@ -6830,19 +6793,12 @@ contains
     call get_rhoc_tot(w,x,ixI^L,ixO^L,rhoc)
     !update density
     if(twofl_coll_inc_ionrec) then
-       allocate(gamma_ion(ixI^S), gamma_rec(ixI^S)) 
-       call get_gamma_ion_rec(ixI^L, ixO^L, w, x, gamma_rec, gamma_ion)
-       tmp2(ixO^S) =  gamma_rec(ixO^S) +  gamma_ion(ixO^S)
-       call calc_mult_factor(ixI^L, ixO^L, dtfactor * qdt, tmp2, tmp3) 
-
-      if(.not. twofl_equi_ionrec) then
-       tmp(ixO^S) = (-gamma_ion(ixO^S) * rhon(ixO^S) + &
+      allocate(gamma_ion(ixI^S), gamma_rec(ixI^S)) 
+      call get_gamma_ion_rec(ixI^L, ixO^L, w, x, gamma_rec, gamma_ion)
+      tmp2(ixO^S) =  gamma_rec(ixO^S) +  gamma_ion(ixO^S)
+      call calc_mult_factor(ixI^L, ixO^L, dtfactor * qdt, tmp2, tmp3) 
+      tmp(ixO^S) = (-gamma_ion(ixO^S) * rhon(ixO^S) + &
                                         gamma_rec(ixO^S) * rhoc(ixO^S))
-      else
-       ! equilibrium density does not evolve through ion/rec 
-       tmp(ixO^S) = (-gamma_ion(ixO^S) * w(ixO^S,rho_n_) + &
-                                        gamma_rec(ixO^S) * w(ixO^S,rho_c_))
-      endif
       wout(ixO^S,rho_n_) = w(ixO^S,rho_n_) + tmp(ixO^S) * tmp3(ixO^S)
       wout(ixO^S,rho_c_) = w(ixO^S,rho_c_) - tmp(ixO^S) * tmp3(ixO^S)
     else
@@ -7014,15 +6970,8 @@ contains
     if(twofl_coll_inc_ionrec) then
        allocate(gamma_ion(ixI^S), gamma_rec(ixI^S)) 
        call get_gamma_ion_rec(ixI^L, ixO^L, w, x, gamma_rec, gamma_ion)
-
-       if(.not. twofl_equi_ionrec) then
-        tmp(ixO^S) = -gamma_ion(ixO^S) * rhon(ixO^S) + &
+       tmp(ixO^S) = -gamma_ion(ixO^S) * rhon(ixO^S) + &
                                         gamma_rec(ixO^S) * rhoc(ixO^S)
-       else
-       ! equilibrium density does not evolve through ion/rec 
-        tmp(ixO^S) = -gamma_ion(ixO^S) * w(ixO^S,rho_n_) + &
-                                        gamma_rec(ixO^S) * w(ixO^S,rho_c_)
-       endif
        w(ixO^S,rho_n_) = tmp(ixO^S) 
        w(ixO^S,rho_c_) = -tmp(ixO^S) 
     else
@@ -7126,16 +7075,10 @@ contains
     call get_rhoc_tot(wCT,x,ixI^L,ixO^L,rhoc)
     !update density
     if(twofl_coll_inc_ionrec) then
-       allocate(gamma_ion(ixI^S), gamma_rec(ixI^S)) 
-       call get_gamma_ion_rec(ixI^L, ixO^L, wCT, x, gamma_rec, gamma_ion)
-
-      if(.not. twofl_equi_ionrec) then
-        tmp(ixO^S) = qdt *(-gamma_ion(ixO^S) * rhon(ixO^S) + &
+      allocate(gamma_ion(ixI^S), gamma_rec(ixI^S)) 
+      call get_gamma_ion_rec(ixI^L, ixO^L, wCT, x, gamma_rec, gamma_ion)
+      tmp(ixO^S) = qdt *(-gamma_ion(ixO^S) * rhon(ixO^S) + &
                                         gamma_rec(ixO^S) * rhoc(ixO^S))
-      else
-       tmp(ixO^S) = qdt * (-gamma_ion(ixO^S) * wCT(ixO^S,rho_n_) + &
-                                        gamma_rec(ixO^S) * wCT(ixO^S,rho_c_))
-      endif  
       w(ixO^S,rho_n_) = w(ixO^S,rho_n_) + tmp(ixO^S) 
       w(ixO^S,rho_c_) = w(ixO^S,rho_c_) - tmp(ixO^S) 
     endif
