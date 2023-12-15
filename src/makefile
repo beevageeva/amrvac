@@ -87,6 +87,7 @@ mod_amrvac.o: mod_comm_lib.mod
 mod_amrvac.o: mod_geometry.mod
 mod_ard.o: mod_amrvac.mod
 mod_ard.o: mod_ard_phys.mod
+mod_ard_phys.o: mod_comm_lib.mod
 mod_ard_phys.o: mod_multigrid_coupling.mod
 mod_ard_phys.o: mod_particles.mod
 mod_ard_phys.o: mod_physics.mod
@@ -349,6 +350,7 @@ mod_radiative_cooling.o: mod_physics.mod
 mod_rbsl.o: mod_geometry.mod
 mod_rd.o: mod_amrvac.mod
 mod_rd.o: mod_rd_phys.mod
+mod_rd_phys.o: mod_comm_lib.mod
 mod_rd_phys.o: mod_multigrid_coupling.mod
 mod_rd_phys.o: mod_particles.mod
 mod_rd_phys.o: mod_physics.mod
