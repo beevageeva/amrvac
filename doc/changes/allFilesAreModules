@@ -1,0 +1,73 @@
+Create folders amr, io, limiter
+
+mv amrgrid.t                  amr/mod_amr_grid.t                                       M
+mv amr_neighbors.t            amr/mod_amr_neighbors.t                                  M
+mv amr_solution_node          amr/mod_amr_solution_node.t                              M
+mv coarsen.t                  amr/mod_coarsen.t                                        M
+mv errest.t                   amr/mod_errest.t                                         M
+mv forest.t                   amr/mod_functions_forest.t                               M
+mv mod_amr_fct.t              amr/
+mv mod_coarsen_refine.t       amr/
+mv mod_forest.t               amr/
+mv mod_load_balance.t         amr/
+mv mod_space_filling_curve.t  amr/
+mv refine.t                   amr/mod_refine.t                                         M
+mv selectgrids.t              amr/mod_selectgrids.t                                    M
+mv amrini.t                   amr/mod_initialize_amr.t                                 M
+
+
+mv connectivity.t             mod_functions_connectivity.t                             M
+mv set_B0.t                   mod_B0.t                                                 M 
+mv setdt.t                    mod_dt.t                                                 M 
+mv comm_lib.t                 mod_comm_lib.t                                           M
+mv boundary_conditions.t      mod_boundary_conditions.t                                M 
+
+
+mv amrvacio                   io
+mv io/convert.t               io/mod_convert_files.t                                   M
+new file                      io/mod_input_output_helper.t  -- to avoid circular dependency                   
+
+mv mod_limiter.t              limiter/
+mv mod_mp5.t                  limiter/
+mv mod_ppm.t                  limiter/
+mv mod_venk.t                 limiter/
+mv mod_weno.t                 limiter/
+
+new file                      physics/mod_functions_Bfield.t -- see CIRCULAR 3) below
+
+
+Notes: 
+1) in gmunu contents of amrini.t were added in mod_initialize, but now there is a new file in amr folder
+2) because of list_module_deps.sh we can't have name of file starting with one of the INCLUDES
+3) CHANGES in arch/lib.make
+
+
+CIRCULAR DEPENDENCIES
+
+1) mod_trac and mod_amr_grid
+subroutine initialize_after_settree in mod_amr_grid moved to initialize_trac_after_settree in mod_trac
+
+2) mod_amr_solution_node and mod_mhd_phys
+mhd_semirelativistic used in mod_amr_solution_node;
+- define logical B0fieldAllocCoarse in mod_global_parameters which is set to true if B0field and mhd_semirelativistic in mhd_mod_phys
+and we test for this variable 
+
+3) mod_constrained_transport and mod_ghostcells_update
+get_divb in mod_mhd_phys is used in mod_boundary_conditions
+- new file physics/mod_functions_Bfield.t where I put get_divb (and called this 
+for mhd, mf, mf2, twofl) and mag(:) variables  -- how many nesting use?, put get_normalized_divb,....
+
+4) mod_dt and mod_trac
+- added phys_trac_after_setdt in mod_physics, moved the implementation in mod_trac (containing the stuff from mod_dt) and called it in mod_dt
+
+
+
+
+
+
+
+
+
+
+
+

@@ -6703,8 +6703,8 @@ contains
       call usr_mask_gamma_ion_rec(ixI^L,ixO^L,w,x,gamma_ion, gamma_rec)
     end if
 
-    !print*, "gamma_ion ", minval(gamma_ion), maxval(gamma_ion)
-    !print*, "gamma_rec ", minval(gamma_rec), maxval(gamma_rec)
+    !print*, "gamma_ion ", minval(gamma_ion(ixO^S)), maxval(gamma_ion(ixO^S))
+    !print*, "gamma_rec ", minval(gamma_rec(ixO^S)), maxval(gamma_rec(ixO^S))
   end subroutine get_gamma_ion_rec
 
   subroutine get_alpha_coll(ixI^L, ixO^L, w, x, alpha)
@@ -6721,7 +6721,7 @@ contains
     if (associated(usr_mask_alpha)) then
       call usr_mask_alpha(ixI^L,ixO^L,w,x,alpha)
     end if
-    print*, "alpha ", minval(alpha), maxval(alpha)
+    !print*, "alpha ", minval(alpha(ixO^S)), maxval(alpha(ixO^S))
   end subroutine get_alpha_coll
 
   subroutine get_alpha_coll_plasma(ixI^L, ixO^L, w, x, alpha)
