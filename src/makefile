@@ -64,6 +64,7 @@ mod_advance.o: mod_particles.mod
 mod_advance.o: mod_physics.mod
 mod_advance.o: mod_source.mod
 mod_advance.o: mod_tvd.mod
+mod_afld.o: mod_comm_lib.mod
 mod_afld.o: mod_geometry.mod
 mod_afld.o: mod_ghostcells_update.mod
 mod_afld.o: mod_multigrid_coupling.mod
@@ -151,10 +152,7 @@ mod_finite_volume.o: mod_limiter.mod
 mod_finite_volume.o: mod_physics.mod
 mod_finite_volume.o: mod_source.mod
 mod_finite_volume.o: mod_tvd.mod
-mod_finite_volume_WITHBUG.o: mod_limiter.mod
-mod_finite_volume_WITHBUG.o: mod_physics.mod
-mod_finite_volume_WITHBUG.o: mod_source.mod
-mod_finite_volume_WITHBUG.o: mod_tvd.mod
+mod_fld.o: mod_comm_lib.mod
 mod_fld.o: mod_geometry.mod
 mod_fld.o: mod_ghostcells_update.mod
 mod_fld.o: mod_multigrid_coupling.mod
