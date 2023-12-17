@@ -23,6 +23,7 @@ module mod_trac
   public :: initialize_trac_after_settree
   public :: TRACL, TRACB, LTRAC, TRAC_simple
 
+  
 
 contains
 
@@ -857,9 +858,10 @@ contains
   end subroutine interp_Tcoff
 
 
-  subroutine trac_after_setdt(tco,trac_alfa,T_peak)
-       double precision, intent(in)    :: trac_alfa,tco,T_peak
+  subroutine trac_after_setdt(tco,trac_alfa,T_peak, T_bott_in)
+       double precision, intent(in)    :: trac_alfa,tco,T_peak, T_bott_in
       ! default lower limit of cutoff temperature
+      T_bott = T_bott_in
       select case(phys_trac_type)
       case(0)
         !> Test case, fixed cutoff temperature
@@ -886,8 +888,6 @@ contains
       case default
         call mpistop("undefined TRAC method type")
       end select
-
-
 
   end subroutine trac_after_setdt
 

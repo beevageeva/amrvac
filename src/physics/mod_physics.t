@@ -144,8 +144,8 @@ module mod_physics
        double precision, intent(out) :: tco_local, Tmax_local
      end subroutine sub_get_tcutoff
 
-     subroutine sub_trac_after_setdt(trac_alfa,tco,T_peak)
-       double precision, intent(in)    :: trac_alfa,tco,T_peak
+     subroutine sub_trac_after_setdt(trac_alfa,tco,T_peak,T_bott)
+       double precision, intent(in)    :: trac_alfa,tco,T_peak,T_bott
      end subroutine sub_trac_after_setdt
 
      subroutine sub_get_v(w,x,ixI^L,ixO^L,v)

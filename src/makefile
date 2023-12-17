@@ -237,6 +237,7 @@ mod_input_output.o: mod_timing.mod
 mod_input_output_helper.o: mod_comm_lib.mod
 mod_input_output_helper.o: mod_physics.mod
 mod_input_output_helper.o: mod_slice.mod
+mod_interpolation.o: mod_comm_lib.mod
 mod_lfff.o: mod_comm_lib.mod
 mod_lfff.o: mod_geometry.mod
 mod_lfff.o: mod_multigrid_coupling.mod
@@ -262,6 +263,7 @@ mod_mf.o: mod_mf_phys.mod
 mod_mf2.o: mod_amrvac.mod
 mod_mf2.o: mod_functions_Bfield.mod
 mod_mf2.o: mod_mf2_phys.mod
+mod_mf2_phys.o: mod_comm_lib.mod
 mod_mf2_phys.o: mod_constrained_transport.mod
 mod_mf2_phys.o: mod_convert.mod
 mod_mf2_phys.o: mod_functions_Bfield.mod
@@ -269,6 +271,7 @@ mod_mf2_phys.o: mod_geometry.mod
 mod_mf2_phys.o: mod_multigrid_coupling.mod
 mod_mf2_phys.o: mod_particles.mod
 mod_mf2_phys.o: mod_physics.mod
+mod_mf_phys.o: mod_comm_lib.mod
 mod_mf_phys.o: mod_constrained_transport.mod
 mod_mf_phys.o: mod_functions_Bfield.mod
 mod_mf_phys.o: mod_geometry.mod

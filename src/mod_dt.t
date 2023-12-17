@@ -159,8 +159,9 @@ contains
 
       endif
       if(.not. associated(phys_trac_after_setdt)) call mpistop("phys_trac_after_setdt not set")
-      !trac_alfa,tco_global are set only for phys_trac_type=1
-      call phys_trac_after_setdt(tco_global,trac_alfa,T_peak)
+      ! trac_alfa,tco_global are set only for phys_trac_type=1, should not be a problem when not initialized
+      ! side effect of modifying T_bott from mod_trac -> T_bott sent as param
+      call phys_trac_after_setdt(tco_global,trac_alfa,T_peak, T_bott)
 
     end if 
   
