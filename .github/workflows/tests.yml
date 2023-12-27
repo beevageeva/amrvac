@@ -132,8 +132,8 @@ jobs:
         run: |
           sudo apt update 
           sudo apt-get -y upgrade 
-          sudo apt-get install intel-oneapi-compiler-fortran
           sudo apt-get install intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
+          sudo apt-get install intel-oneapi-compiler-fortran
           sudo apt-get install intel-oneapi-mpi
           sudo apt-get install intel-oneapi-mpi-devel
           source /opt/intel/oneapi/setvars.sh
