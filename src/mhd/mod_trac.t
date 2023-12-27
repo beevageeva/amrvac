@@ -1,7 +1,7 @@
 module mod_trac
   use mod_global_parameters
   use mod_mhd
-  use mod_functions_Bfield, only: mag
+  use mod_functions_bfield, only: mag
 
   implicit none
   private

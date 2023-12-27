@@ -1,4 +1,4 @@
-module mod_B0
+module mod_b0
 
   implicit none
   private
@@ -129,5 +129,5 @@ contains
   end subroutine set_B0_face
 
 
-end module mod_B0
+end module mod_b0
 

@@ -138,6 +138,7 @@ jobs:
           printenv >> $GITHUB_ENV
       - name: check compiler versions
         run: |
+          echo $PATH
           ${FC} --version
           ${CC} --version
           mpirun --version

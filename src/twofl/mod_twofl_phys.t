@@ -8,7 +8,7 @@ module mod_twofl_phys
   use mod_thermal_conduction, only: tc_fluid
   use mod_radiative_cooling, only: rc_fluid
   use mod_thermal_emission, only: te_fluid
-  use mod_functions_Bfield, only: get_divb,mag
+  use mod_functions_bfield, only: get_divb,mag
 
   implicit none
   private

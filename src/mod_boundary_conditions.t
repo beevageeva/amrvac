@@ -8,7 +8,7 @@ module mod_boundary_conditions
   public :: getintbc
 
 contains
-
+  
 
   !> fill ghost cells at a physical boundary
   subroutine bc_phys(iside,idims,time,qdt,s,ixG^L,ixB^L)
@@ -16,7 +16,7 @@ contains
     use mod_bc_data, only: bc_data_set
     use mod_global_parameters
     use mod_physics
-    use mod_functions_Bfield, only: get_divb
+    use mod_functions_bfield, only: get_divb
   
     integer, intent(in) :: iside, idims, ixG^L,ixB^L
     double precision, intent(in) :: time,qdt

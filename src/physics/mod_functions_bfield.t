@@ -1,4 +1,4 @@
-module mod_functions_Bfield
+module mod_functions_bfield
 
   implicit none
   private
@@ -44,4 +44,4 @@ contains
   end subroutine get_divb
 
 
-end module mod_functions_Bfield
+end module mod_functions_bfield

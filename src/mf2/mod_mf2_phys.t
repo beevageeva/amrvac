@@ -1,7 +1,7 @@
 !> Magnetofriction module
 module mod_mf2_phys
   use mod_global_parameters, only: std_len
-  use mod_functions_Bfield, only: get_divb,mag
+  use mod_functions_bfield, only: get_divb,mag
   use mod_comm_lib, only: mpistop
 
   implicit none

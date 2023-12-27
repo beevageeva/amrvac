@@ -63,7 +63,7 @@ contains
     use mod_geometry
     use mod_usr_methods, only: usr_set_surface
     use mod_physics, only: phys_set_equi_vars
-    use mod_B0, only: set_B0_grid 
+    use mod_b0, only: set_B0_grid 
  
     integer, intent(in) :: igrid
   

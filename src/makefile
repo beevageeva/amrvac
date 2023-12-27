@@ -6,7 +6,7 @@ mod_basic_types.t
 FOBJECTS = mod_advance.t mod_dt.t 		\
 mod_finite_volume.t mod_tvd.t mod_finite_difference.t \
 mod_functions_connectivity.t mod_boundary_conditions.t mod_comm_lib.t 	\
-mod_B0.t  mod_geometry.t	\
+mod_b0.t  mod_geometry.t	\
 mod_ghostcells_update.t mod_small_values.t  \
 mod_fix_conserve.t mod_source.t mod_initialize.t  \
 mod_amrvac.t mod_bc_data.t mod_lookup_table.t    \
@@ -54,7 +54,6 @@ amrvac.o: mod_selectgrids.mod
 amrvac.o: mod_timing.mod
 amrvac.o: mod_trac.mod
 amrvac.o: mod_usr.mod
-mod_B0.o: mod_geometry.mod
 mod_advance.o: mod_comm_lib.mod
 mod_advance.o: mod_finite_difference.mod
 mod_advance.o: mod_finite_volume.mod
@@ -79,7 +78,7 @@ mod_amr_grid.o: mod_errest.mod
 mod_amr_grid.o: mod_fix_conserve.mod
 mod_amr_grid.o: mod_ghostcells_update.mod
 mod_amr_neighbors.o: mod_geometry.mod
-mod_amr_solution_node.o: mod_B0.mod
+mod_amr_solution_node.o: mod_b0.mod
 mod_amr_solution_node.o: mod_comm_lib.mod
 mod_amr_solution_node.o: mod_geometry.mod
 mod_amr_solution_node.o: mod_physics.mod
@@ -91,11 +90,12 @@ mod_ard_phys.o: mod_comm_lib.mod
 mod_ard_phys.o: mod_multigrid_coupling.mod
 mod_ard_phys.o: mod_particles.mod
 mod_ard_phys.o: mod_physics.mod
+mod_b0.o: mod_geometry.mod
 mod_bc_data.o: mod_comm_lib.mod
 mod_bc_data.o: mod_lookup_table.mod
 mod_bc_data.o: mod_physics.mod
 mod_boundary_conditions.o: mod_bc_data.mod
-mod_boundary_conditions.o: mod_functions_Bfield.mod
+mod_boundary_conditions.o: mod_functions_bfield.mod
 mod_boundary_conditions.o: mod_physics.mod
 mod_bremsstrahlung.o: mod_physics.mod
 mod_cak_force.o: mod_comm_lib.mod
@@ -159,7 +159,7 @@ mod_fld.o: mod_ghostcells_update.mod
 mod_fld.o: mod_multigrid_coupling.mod
 mod_fld.o: mod_opal_opacity.mod
 mod_fld.o: mod_physics.mod
-mod_functions_Bfield.o: mod_geometry.mod
+mod_functions_bfield.o: mod_geometry.mod
 mod_functions_connectivity.o: mod_amr_neighbors.mod
 mod_functions_connectivity.o: mod_ghostcells_update.mod
 mod_functions_forest.o: mod_amr_neighbors.mod
@@ -258,33 +258,33 @@ mod_magnetofriction.o: mod_input_output.mod
 mod_magnetofriction.o: mod_limiter.mod
 mod_magnetofriction.o: mod_physics.mod
 mod_mf.o: mod_amrvac.mod
-mod_mf.o: mod_functions_Bfield.mod
+mod_mf.o: mod_functions_bfield.mod
 mod_mf.o: mod_mf_phys.mod
 mod_mf2.o: mod_amrvac.mod
-mod_mf2.o: mod_functions_Bfield.mod
+mod_mf2.o: mod_functions_bfield.mod
 mod_mf2.o: mod_mf2_phys.mod
 mod_mf2_phys.o: mod_comm_lib.mod
 mod_mf2_phys.o: mod_constrained_transport.mod
 mod_mf2_phys.o: mod_convert.mod
-mod_mf2_phys.o: mod_functions_Bfield.mod
+mod_mf2_phys.o: mod_functions_bfield.mod
 mod_mf2_phys.o: mod_geometry.mod
 mod_mf2_phys.o: mod_multigrid_coupling.mod
 mod_mf2_phys.o: mod_particles.mod
 mod_mf2_phys.o: mod_physics.mod
 mod_mf_phys.o: mod_comm_lib.mod
 mod_mf_phys.o: mod_constrained_transport.mod
-mod_mf_phys.o: mod_functions_Bfield.mod
+mod_mf_phys.o: mod_functions_bfield.mod
 mod_mf_phys.o: mod_geometry.mod
 mod_mf_phys.o: mod_ghostcells_update.mod
 mod_mf_phys.o: mod_multigrid_coupling.mod
 mod_mf_phys.o: mod_particles.mod
 mod_mf_phys.o: mod_physics.mod
 mod_mhd.o: mod_amrvac.mod
-mod_mhd.o: mod_functions_Bfield.mod
+mod_mhd.o: mod_functions_bfield.mod
 mod_mhd.o: mod_mhd_hllc.mod
 mod_mhd.o: mod_mhd_phys.mod
 mod_mhd.o: mod_mhd_roe.mod
-mod_mhd_hllc.o: mod_functions_Bfield.mod
+mod_mhd_hllc.o: mod_functions_bfield.mod
 mod_mhd_hllc.o: mod_mhd_phys.mod
 mod_mhd_hllc.o: mod_physics_hllc.mod
 mod_mhd_phys.o: mod_cak_force.mod
@@ -292,7 +292,7 @@ mod_mhd_phys.o: mod_comm_lib.mod
 mod_mhd_phys.o: mod_constrained_transport.mod
 mod_mhd_phys.o: mod_convert.mod
 mod_mhd_phys.o: mod_fix_conserve.mod
-mod_mhd_phys.o: mod_functions_Bfield.mod
+mod_mhd_phys.o: mod_functions_bfield.mod
 mod_mhd_phys.o: mod_geometry.mod
 mod_mhd_phys.o: mod_gravity.mod
 mod_mhd_phys.o: mod_ionization_degree.mod
@@ -307,7 +307,7 @@ mod_mhd_phys.o: mod_supertimestepping.mod
 mod_mhd_phys.o: mod_thermal_conduction.mod
 mod_mhd_phys.o: mod_thermal_emission.mod
 mod_mhd_phys.o: mod_viscosity.mod
-mod_mhd_roe.o: mod_functions_Bfield.mod
+mod_mhd_roe.o: mod_functions_bfield.mod
 mod_mhd_roe.o: mod_mhd_phys.mod
 mod_mhd_roe.o: mod_physics_roe.mod
 mod_mhd_roe.o: mod_tvd.mod
@@ -426,7 +426,7 @@ mod_thermal_conduction.o: mod_fix_conserve.mod
 mod_thermal_conduction.o: mod_geometry.mod
 mod_thermal_emission.o: mod_geometry.mod
 mod_thermal_emission.o: mod_physics.mod
-mod_trac.o: mod_functions_Bfield.mod
+mod_trac.o: mod_functions_bfield.mod
 mod_trac.o: mod_mhd.mod
 mod_trac.o: mod_physics.mod
 mod_trac.o: mod_trace_field.mod
@@ -436,18 +436,18 @@ mod_tvd.o: mod_comm_lib.mod
 mod_tvd.o: mod_limiter.mod
 mod_tvd.o: mod_physics_roe.mod
 mod_twofl.o: mod_amrvac.mod
-mod_twofl.o: mod_functions_Bfield.mod
+mod_twofl.o: mod_functions_bfield.mod
 mod_twofl.o: mod_twofl_hllc.mod
 mod_twofl.o: mod_twofl_phys.mod
 mod_twofl.o: mod_twofl_roe.mod
-mod_twofl_hllc.o: mod_functions_Bfield.mod
+mod_twofl_hllc.o: mod_functions_bfield.mod
 mod_twofl_hllc.o: mod_physics.mod
 mod_twofl_hllc.o: mod_physics_hllc.mod
 mod_twofl_hllc.o: mod_twofl_phys.mod
 mod_twofl_phys.o: mod_constrained_transport.mod
 mod_twofl_phys.o: mod_convert.mod
 mod_twofl_phys.o: mod_fix_conserve.mod
-mod_twofl_phys.o: mod_functions_Bfield.mod
+mod_twofl_phys.o: mod_functions_bfield.mod
 mod_twofl_phys.o: mod_geometry.mod
 mod_twofl_phys.o: mod_ghostcells_update.mod
 mod_twofl_phys.o: mod_hyperdiffusivity.mod
@@ -459,7 +459,7 @@ mod_twofl_phys.o: mod_supertimestepping.mod
 mod_twofl_phys.o: mod_thermal_conduction.mod
 mod_twofl_phys.o: mod_thermal_emission.mod
 mod_twofl_phys.o: mod_viscosity.mod
-mod_twofl_roe.o: mod_functions_Bfield.mod
+mod_twofl_roe.o: mod_functions_bfield.mod
 mod_twofl_roe.o: mod_physics_roe.mod
 mod_twofl_roe.o: mod_tvd.mod
 mod_twofl_roe.o: mod_twofl_phys.mod

@@ -9,7 +9,7 @@ module mod_mhd_phys
   use mod_thermal_emission, only: te_fluid
   use mod_physics
   use mod_comm_lib, only: mpistop
-  use mod_functions_Bfield, only: get_divb, mag
+  use mod_functions_bfield, only: get_divb, mag
 
   implicit none
   private
