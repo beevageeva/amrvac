@@ -141,7 +141,6 @@ jobs:
       - name: check compiler versions
         run: |
           echo $PATH
-          ls  /opt/intel/oneapi/compiler/2023.2.3/bin
           ls  /opt/intel/oneapi/compiler/2024.0/bin
           ${FC} --version
           ${CC} --version
