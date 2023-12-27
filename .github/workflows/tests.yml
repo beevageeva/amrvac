@@ -130,6 +130,8 @@ jobs:
           sudo add-apt-repository  -y "deb https://apt.repos.intel.com/oneapi all main"
       - name: install Intel oneAPI
         run: |
+        # intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic has to be installed before intel-oneapi-compiler-fortran,
+        # now there are two versions and rewrites the path
           sudo apt update 
           sudo apt-get -y upgrade 
           sudo apt-get install intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
@@ -141,9 +143,10 @@ jobs:
       - name: check compiler versions
         run: |
           echo $PATH
-          ls  /opt/intel/oneapi/compiler/2024.0/bin
+          ls  /opt/intel/oneapi/mpi/2021.11/bin
           ${FC} --version
-          ${CC} --version
+          #icc not installed anymore in above packages
+          #${CC} --version
           mpirun --version
           mpiifort --version
       - name: check code dependencies
