@@ -141,6 +141,7 @@ jobs:
       - name: check compiler versions
         run: |
           echo $PATH
+          ls  /opt/intel/oneapi/compiler/
           ${FC} --version
           ${CC} --version
           mpirun --version
