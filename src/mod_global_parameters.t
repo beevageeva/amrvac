@@ -47,7 +47,7 @@ module mod_global_parameters
 
   ! geometry and domain setups
 
-  !> the mesh range (within a block with ghost cells)
+  !> the mesh range of a physical block without ghost cells
   integer :: ixM^LL
 
   !> minimum and maximum domain boundaries for each dimension
@@ -689,6 +689,7 @@ module mod_global_parameters
   integer, parameter :: bc_noinflow=7
   integer, parameter :: bc_data=8
   integer, parameter :: bc_character=9
+  integer, parameter :: bc_icarus=10
 
   !> whether copy values instead of interpolation in ghost cells of finer blocks
   logical :: ghost_copy=.false.
@@ -754,6 +755,5 @@ contains
     axb(ixO^S,2)=a(ixO^S,3)*b(ixO^S,1)-a(ixO^S,1)*b(ixO^S,3)
     axb(ixO^S,3)=a(ixO^S,1)*b(ixO^S,2)-a(ixO^S,2)*b(ixO^S,1)
   end subroutine cross_product
-
 
 end module mod_global_parameters

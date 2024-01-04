@@ -140,7 +140,7 @@ contains
     integer :: ix^D,na
     logical, save :: first=.true.
 
-    w(ixO^S,1:nw)=zero
+    !w(ixO^S,1:nw)=zero
     if(first)then
       if(mype==0) then
         write(*,*)'Simulating 2.5D solar atmosphere'

@@ -67,6 +67,8 @@ contains
                 w(ixO^S,iw) = - w(ixO^S,iw)
              case (bc_data)
                 ! skip it here, do AFTER all normal type boundaries are set
+           case (bc_icarus)
+              ! skip it here, do AFTER all normal type boundaries are set
              case (bc_character)
                 ! skip it here, do AFTER all normal type boundaries are set
              case default
@@ -170,6 +172,8 @@ contains
                 w(ixO^S,iw) = - w(ixO^S,iw)
              case (bc_data)
                 ! skip it here, do AFTER all normal type boundaries are set
+           case (bc_icarus)
+              ! skip it here, do AFTER all normal type boundaries are set
              case (bc_character)
                 ! skip it here, do AFTER all normal type boundaries are set
              case default
@@ -253,6 +257,15 @@ contains
        call bc_data_set(time,ixG^L,ixO^L,iB,w,x)
     end if
   
+
+  ! fill boundary conditions from external data vtk files and do user defined special boundary conditions
+  if (any(typeboundary(1:nwflux+nwaux,iB)==bc_icarus)) then
+     call bc_data_set(time,ixG^L,ixO^L,iB,w,x)
+     if (.not. associated(usr_special_bc)) &
+          call mpistop("usr_special_bc not defined")
+     call usr_special_bc(time,ixG^L,ixO^L,iB,w,x)
+  end if
+
     {#IFDEF EVOLVINGBOUNDARY
     if (any(typeboundary(1:nwflux,iB)==bc_character)) then
       ixM^L=ixM^LL;

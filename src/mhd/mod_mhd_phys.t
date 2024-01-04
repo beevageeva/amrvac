@@ -1031,7 +1031,7 @@ contains
     integer                      :: n
 
     ! list parameters
-    logical :: tc_perpendicular=.true.
+    logical :: tc_perpendicular=.false.
     logical :: tc_saturate=.false.
     double precision :: tc_k_para=0d0
     double precision :: tc_k_perp=0d0
@@ -1049,7 +1049,24 @@ contains
     fl%tc_saturate = tc_saturate
     fl%tc_k_para = tc_k_para
     fl%tc_k_perp = tc_k_perp
-    fl%tc_slope_limiter = tc_slope_limiter
+    select case(tc_slope_limiter)
+     case ('no','none')
+       fl%tc_slope_limiter = 0
+     case ('MC')
+       ! montonized central limiter Woodward and Collela limiter (eq.3.51h), a factor of 2 is pulled out
+       fl%tc_slope_limiter = 1
+     case('minmod')
+       ! minmod limiter
+       fl%tc_slope_limiter = 2
+     case ('superbee')
+       ! Roes superbee limiter (eq.3.51i)
+       fl%tc_slope_limiter = 3
+     case ('koren')
+       ! Barry Koren Right variant
+       fl%tc_slope_limiter = 4
+     case default
+       call mpistop("Unknown tc_slope_limiter, choose MC, minmod")
+    end select
   end subroutine tc_params_read_mhd
 !!end th cond
 
@@ -1268,8 +1285,7 @@ contains
       unit_pressure=unit_magneticfield**2/miu0
       unit_temperature=unit_pressure/(b*unit_numberdensity*kB)
       unit_velocity=sqrt(unit_pressure/unit_density)
-    else
-      ! unit of temperature is independent by default
+    else if(unit_temperature/=1.d0) then
       unit_pressure=b*unit_numberdensity*kB*unit_temperature
       unit_velocity=sqrt(unit_pressure/unit_density)
       unit_magneticfield=sqrt(miu0*unit_pressure)

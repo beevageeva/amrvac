@@ -1270,6 +1270,8 @@ contains
         typeboundary(iw,2*^D-1)=12
       case("bc_data")
         typeboundary(iw,2*^D-1)=bc_data
+      case("bc_icarus")
+        typeboundary(iw,2*^D-1)=bc_icarus
       case("character")
         typeboundary(iw,2*^D-1)=bc_character
       case default
@@ -1297,6 +1299,8 @@ contains
         typeboundary(iw,2*^D)=12
       case("bc_data")
         typeboundary(iw,2*^D)=bc_data
+      case("bc_icarus")
+        typeboundary(iw,2*^D-1)=bc_icarus
       case("bc_character")
         typeboundary(iw,2*^D)=bc_character
       case default
