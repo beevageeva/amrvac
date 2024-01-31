@@ -179,16 +179,21 @@ contains
     cons_wnames(nwflux) = 'rho'
   end function var_set_rho
 
-  !> Exit MPI-AMRVAC with an error message
-  subroutine errormsg(message)
   
+  !> Exit MPI-AMRVAC with an error message
+  !TODO   mpistop from mod_comm_lib cannot be used
+  ! because of circular dependency, should it exit?
+  subroutine errormsg(message)
+ 
     character(len=*), intent(in) :: message !< The error message
   
-    write(*, *) "ERROR for processor"
+    write(*, *) "ERROR: "
     write(*, *) trim(message)
   
   
   end subroutine errormsg
+
+
   !> Set momentum variables
   function var_set_momentum(ndir) result(iw)
     integer, intent(in) :: ndir

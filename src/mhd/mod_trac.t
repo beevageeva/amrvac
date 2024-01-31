@@ -21,9 +21,6 @@ module mod_trac
   logical, allocatable :: trac_pe(:)
 
   public :: initialize_trac_after_settree
-  public :: TRACL, TRACB, LTRAC, TRAC_simple
-
-  
 
 contains
 

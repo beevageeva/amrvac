@@ -4,6 +4,7 @@ module mod_hd_phys
   use mod_radiative_cooling, only: rc_fluid
   use mod_thermal_emission, only: te_fluid
   use mod_physics
+  use mod_comm_lib, only: mpistop
   implicit none
   private
 
@@ -459,7 +460,6 @@ contains
     ! fill in tc_fluid fields from namelist
     subroutine tc_params_read_hd(fl)
       use mod_global_parameters, only: unitpar,par_files
-      use mod_global_parameters, only: unitpar
       type(tc_fluid), intent(inout) :: fl
       integer                      :: n
       logical :: tc_saturate=.false.

@@ -119,7 +119,7 @@ module mod_ghostcells_update
 contains
 
   subroutine init_bc()
-    use mod_global_parameters 
+    use mod_global_parameters
     use mod_physics, only: phys_req_diagonal, physics_type
     use mod_comm_lib, only: mpistop
 
@@ -362,7 +362,7 @@ contains
   end subroutine init_bc
 
   subroutine create_bc_mpi_datatype(nwstart,nwbc) 
-    use mod_global_parameters 
+    use mod_global_parameters
 
     integer, intent(in) :: nwstart, nwbc
     integer :: i^D, ic^D, inc^D, iib^D
@@ -386,7 +386,7 @@ contains
   end subroutine create_bc_mpi_datatype
 
   subroutine get_bc_comm_type(comm_type,ix^L,ixG^L,nwstart,nwbc)
-    use mod_global_parameters 
+    use mod_global_parameters
   
     integer, intent(inout) :: comm_type
     integer, intent(in) :: ix^L, ixG^L, nwstart, nwbc
@@ -407,7 +407,7 @@ contains
   end subroutine get_bc_comm_type
 
   subroutine put_bc_comm_types()
-    use mod_global_parameters 
+    use mod_global_parameters
  
     integer :: i^D, ic^D, inc^D, iib^D
 
@@ -1086,6 +1086,8 @@ contains
         double precision :: tmp(ixGs^T)
         integer :: ixS^L,ixR^L,n_i^D,ixSsync^L,ixRsync^L
         integer :: idir
+        integer :: idirect
+        idirect={abs(i^D)|+}
 
         ipe_neighbor=neighbor(2,i^D,igrid)
         if(ipe_neighbor/=mype) then
@@ -1102,6 +1104,11 @@ contains
               ixR^L=ixR_srl_stg_^L(idir,i^D);
               ibuf_next=ibuf_recv_srl+sizes_srl_recv_stg(idir,i^D)
               tmp(ixS^S) = reshape(source=recvbuffer_srl(ibuf_recv_srl:ibuf_next-1),shape=shape(psb(igrid)%ws(ixS^S,idir)))       
+              if (idirect==1) then
+                 call indices_for_syncing(idir,i^D,ixR^L,ixS^L,ixRsync^L,ixSsync^L) ! Overwrites ixR, ixS
+                 psb(igrid)%ws(ixRsync^S,idir) = &
+                      0.5d0*(tmp(ixSsync^S) + psb(igrid)%ws(ixRsync^S,idir))
+              end if
               psb(igrid)%ws(ixR^S,idir) = tmp(ixS^S)
               ibuf_recv_srl=ibuf_next
             end do

@@ -5,20 +5,15 @@ export LC_ALL=C
 # Get all occurrences of use mod_... in .t files
 # - The '.' is for Mac compatibility
 # - The 'sort' is to ensure the order is identical on different systems
-deps="$(grep -r -e "^\s*use mod_" --include \*.t . | sort)"
-
-# Remove the INCLUDES defined in makefile (are compiled first)
-deps=$(echo "$deps" | sed 's/use mod_global_parameters//')
-deps=$(echo "$deps" | sed 's/use mod_usr_methods//')
-deps=$(echo "$deps" | sed 's/use mod_forest//') #now in amr/makefile
-deps=$(echo "$deps" | sed 's/use mod_physicaldata//')
-deps=$(echo "$deps" | sed 's/use mod_connectivity//')
-deps=$(echo "$deps" | sed 's/use mod_constants//')
-deps=$(echo "$deps" | sed 's/use mod_variables//')
-deps=$(echo "$deps" | sed 's/use mod_basic_types//')
+#deps="$(grep -r -e "^\s*use mod_" --include \*.t . | sort)"
+deps="$(grep -r -e "^\s*use " --include \*.t . | sort)"
 
 # Remove old_physics entries
 deps=$(echo "$deps" | sed 's/^.*old_physics[/].*$//')
+
+# Remove compiler provided modules entry
+deps=$(echo "$deps" | sed 's/^.* iso_fortran_env.*$//')
+deps=$(echo "$deps" | sed 's/^.* mpi$//')
 
 # Remove amrvac.o entry (it is compiled later)
 deps=$(echo "$deps" | sed 's/^amrvac[.]t.*$//')

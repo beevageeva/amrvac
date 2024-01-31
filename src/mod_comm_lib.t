@@ -56,6 +56,7 @@ contains
   !> Create and store the MPI types that will be used for parallel communication
   subroutine init_comm_types
     use mod_global_parameters
+    use mod_variables, only: nw,nws
   
     integer, dimension(ndim+1) :: sizes, subsizes, start
     integer :: i^D, ic^D, nx^D, nxCo^D, nxG^D, idir
