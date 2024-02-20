@@ -21,35 +21,38 @@ contains
       call getbc(global_time,0.d0,ps,iwstart,nwgc)
     end if
 
-    select case(convert_type)
+  do i=1,number_convert_types
+  convert_type_elem=convert_type_array(i)
+  
+  select case(convert_type_elem)
       case('tecplot','tecplotCC','tecline')
-       call tecplot(unitconvert)
+       call tecplot(unitconvert,convert_type_elem)
       case('tecplotmpi','tecplotCCmpi','teclinempi')
-       call tecplot_mpi(unitconvert)
+       call tecplot_mpi(unitconvert,convert_type_elem)
       case('vtu','vtuCC')
-       call unstructuredvtk(unitconvert)
+       call unstructuredvtk(unitconvert,convert_type_elem)
       case('vtumpi','vtuCCmpi')
-       call unstructuredvtk_mpi(unitconvert)
+       call unstructuredvtk_mpi(unitconvert,convert_type_elem)
       case('vtuB','vtuBCC','vtuBmpi','vtuBCCmpi')
-       call unstructuredvtkB(unitconvert)
+       call unstructuredvtkB(unitconvert,convert_type_elem)
       case('vtuB64','vtuBCC64','vtuBmpi64','vtuBCCmpi64')
-       call unstructuredvtkB64(unitconvert)
+       call unstructuredvtkB64(unitconvert,convert_type_elem)
       {^IFTWOD
       case('vtuB23','vtuBCC23')
-       call unstructuredvtkB23(unitconvert)
+       call unstructuredvtkB23(unitconvert,convert_type_elem)
       case('vtuBsym23','vtuBCCsym23')
-       call unstructuredvtkBsym23(unitconvert)
+       call unstructuredvtkBsym23(unitconvert,convert_type_elem)
       }
       case('pvtumpi','pvtuCCmpi')
-       call punstructuredvtk_mpi(unitconvert)
+       call punstructuredvtk_mpi(unitconvert,convert_type_elem)
       case('pvtuBmpi','pvtuBCCmpi')
-       call punstructuredvtkB_mpi(unitconvert)
+       call punstructuredvtkB_mpi(unitconvert,convert_type_elem)
       case('vtimpi','vtiCCmpi')
-       call ImageDataVtk_mpi(unitconvert)
+       call ImageDataVtk_mpi(unitconvert,convert_type_elem)
       case('onegrid','onegridmpi')
        call onegrid(unitconvert)
       case('oneblock','oneblockB')
-       call oneblock(unitconvert)
+       call oneblock(unitconvert,convert_type_elem)
       case('EIvtiCCmpi','ESvtiCCmpi','SIvtiCCmpi','WIvtiCCmpi','EIvtuCCmpi','ESvtuCCmpi','SIvtuCCmpi','WIvtuCCmpi')
         ! output synthetic euv emission
         if (ndim==3 .and. associated(phys_te_images)) then
@@ -66,10 +69,11 @@ contains
       case default
        call mpistop("Error in generate_plotfile: Unknown convert_type")
     end select
+  enddo
 
   end subroutine generate_plotfile
 
-  subroutine oneblock(qunit)
+  subroutine oneblock(qunit,convert_type_oneblock)
     ! this is for turning an AMR run into a single block
     ! the data will be all on selected level level_io
     ! this version should work for any dimension
@@ -86,6 +90,7 @@ contains
     use mod_physics
     use mod_calculate_xw
     integer, intent(in) :: qunit
+    character(len=*), intent(in) :: convert_type_oneblock
 
     integer             :: Morton_no,igrid,ix^D,ig^D,level
     integer, pointer    :: ig_to_igrid(:^D&,:)
@@ -212,7 +217,7 @@ contains
         filenr=snapshotini
         if (autoconvert) filenr=snapshotnext
        write(filename,'(a,i4.4,a)') TRIM(base_filename),filenr,".blk"
-       select case(convert_type)
+       select case(convert_type_oneblock)
         case("oneblock")
          open(qunit,file=filename,status='unknown')
          write(qunit,*) TRIM(outfilehead)
@@ -240,7 +245,7 @@ contains
              if(.not.writeblk(igrid)) cycle
              do ix1=ixMlo1,ixMhi1
                Master_write : if(mype==0) then
-                 select case(convert_type)
+                 select case(convert_type_oneblock)
                    case("oneblock")
                      write(qunit,fmt="(100(e14.6))") &
                       ps(igrid)%x(ix^D,1:ndim)*normconv(0),&
@@ -366,7 +371,7 @@ contains
     if(mype==0) close(qunit)
   end subroutine onegrid 
 
-  subroutine tecplot(qunit)
+  subroutine tecplot(qunit,convert_type_tec)
 
     ! output for tecplot (ASCII format)
     ! not parallel, uses calc_grid to compute nwauxio variables
@@ -376,6 +381,7 @@ contains
     use mod_calculate_xw
 
     integer, intent(in) :: qunit
+    character(len=*), intent(in) :: convert_type_tec
 
     integer::               igrid,iigrid,level,igonlevel,iw,idim,ix^D
     integer::               NumGridsOnLevel(1:nlevelshi)
@@ -438,7 +444,7 @@ contains
     nxC^D=nx^D+1;
 
     {^IFONED
-    if(convert_type=='tecline') then
+    if(convert_type_tec=='tecline') then
       nodes=0
       elems=0
       do level=levmin,levmax
@@ -473,7 +479,7 @@ contains
       !       hence not implemented
       !    let entire octree define 1 zone: no difference in interpolation 
       !       properties across TECPLOT zones detected as yet, hence not done
-      select case(convert_type)
+      select case(convert_type_tec)
         case('tecplot')
           ! in this option, we store the corner coordinates, as well as the corner
           ! values of all variables (obtained by averaging). This allows POINT packaging, 
@@ -634,7 +640,7 @@ contains
 
   end function nodenumbertec3D
 
-  subroutine unstructuredvtk(qunit)
+  subroutine unstructuredvtk(qunit,convert_type_vtu)
 
     ! output for vtu format to paraview
     ! not parallel, uses calc_grid to compute nwauxio variables
@@ -643,6 +649,7 @@ contains
     use mod_calculate_xw
 
     integer, intent(in) ::    qunit
+    character(len=*), intent(in) :: convert_type_vtu
 
     double precision ::  x_VTK(1:3)
     double precision, dimension(ixMlo^D-1:ixMhi^D,ndim) :: xC_TMP
@@ -711,7 +718,7 @@ contains
             call calc_x(igrid,xC,xCC)
             call calc_grid(qunit,igrid,xC,xCC,xC_TMP,xCC_TMP,wC_TMP,wCC_TMP,normconv,&
                           ixC^L,ixCC^L,.true.)
-            select case(convert_type)
+            select case(convert_type_vtu)
             case('vtu')
               ! we write out every grid as one VTK PIECE
               write(qunit,'(a,i7,a,i7,a)') &
@@ -802,7 +809,7 @@ contains
 
   end subroutine unstructuredvtk
 
-  subroutine unstructuredvtkB(qunit)
+  subroutine unstructuredvtkB(qunit,convert_type_vtu)
 
     ! output for vtu format to paraview, binary version output
     ! not parallel, uses calc_grid to compute nwauxio variables
@@ -812,6 +819,7 @@ contains
     use mod_calculate_xw
 
     integer, intent(in) ::    qunit
+    character(len=*), intent(in) :: convert_type_vtu
 
     double precision ::  x_VTK(1:3)
     double precision, dimension(ixMlo^D-1:ixMhi^D,ndim) :: xC_TMP
@@ -856,7 +864,7 @@ contains
     end do
     call MPI_ALLREDUCE(Morton_aim_p,Morton_aim,Morton_length,MPI_LOGICAL,MPI_LOR,&
                              icomm,ierrmpi)
-    select case(convert_type)
+    select case(convert_type_vtu)
      case('vtuB','vtuBmpi')
        cell_corner=.true.
      case('vtuBCC','vtuBCCmpi')
@@ -1197,7 +1205,7 @@ contains
 
   end subroutine unstructuredvtkB
 
-  subroutine unstructuredvtkB64(qunit)
+  subroutine unstructuredvtkB64(qunit,convert_type_vtu)
     ! output for vtu format to paraview, binary version output
     ! not parallel, uses calc_grid to compute nwauxio variables
     ! allows renormalizing using convert factors
@@ -1206,6 +1214,7 @@ contains
     use mod_calculate_xw
 
     integer, intent(in) ::    qunit
+    character(len=*), intent(in) :: convert_type_vtu
 
     double precision ::  x_VTK(1:3)
     double precision, dimension(ixMlo^D-1:ixMhi^D,ndim) :: xC_TMP
@@ -1250,7 +1259,7 @@ contains
     end do
     call MPI_ALLREDUCE(Morton_aim_p,Morton_aim,Morton_length,MPI_LOGICAL,MPI_LOR,&
                              icomm,ierrmpi)
-    select case(convert_type)
+    select case(convert_type_vtu)
      case('vtuB64','vtuBmpi64')
        cell_corner=.true.
      case('vtuBCC64','vtuBCCmpi64')
@@ -1613,7 +1622,7 @@ contains
 
   end subroutine save_connvtk
 
-  subroutine ImageDataVtk_mpi(qunit)
+  subroutine ImageDataVtk_mpi(qunit,convert_type_vtk)
     ! output for vti format to paraview, non-binary version output
     ! parallel, uses calc_grid to compute nwauxio variables
     ! allows renormalizing using convert factors
@@ -1625,6 +1634,7 @@ contains
     use mod_calculate_xw
 
     integer, intent(in) ::    qunit
+    character(len=*), intent(in) :: convert_type_vtk
 
     double precision, dimension(ixMlo^D-1:ixMhi^D,ndim) :: xC_TMP,xC_TMP_recv
     double precision, dimension(ixMlo^D:ixMhi^D,ndim)   :: xCC_TMP,xCC_TMP_recv
@@ -1735,7 +1745,7 @@ contains
         call calc_x(igrid,xC,xCC)
         call calc_grid(qunit,igrid,xC,xCC,xC_TMP,xCC_TMP,wC_TMP,wCC_TMP,normconv,&
              ixC^L,ixCC^L,.true.)
-        call write_vti(qunit,ixG^LL,ixC^L,ixCC^L,ig^D,&
+        call write_vti(qunit,convert_type_vtk,ixG^LL,ixC^L,ixCC^L,ig^D,&
              nx^D,normconv,wnamei,wC_TMP,wCC_TMP)   
       end do
 
@@ -1751,7 +1761,7 @@ contains
             ig^D=ind_recv(4*^ND+^D);
             call MPI_RECV(wC_TMP,1,type_block_wc_io, ipe,itag,icomm,intstatus(:,1),ierrmpi)
             call MPI_RECV(wCC_TMP,1,type_block_wcc_io, ipe,itag,icomm,intstatus(:,1),ierrmpi)
-            call write_vti(qunit,ixG^LL,ixrvC^L,ixrvCC^L,ig^D,&
+            call write_vti(qunit,convert_type_vtk,ixG^LL,ixrvC^L,ixrvCC^L,ig^D,&
                  nx^D,normconv,wnamei,wC_TMP,wCC_TMP)   
           end do
         end do
@@ -1769,7 +1779,7 @@ contains
 
   end subroutine ImageDataVtk_mpi
 
-  subroutine punstructuredvtk_mpi(qunit)
+  subroutine punstructuredvtk_mpi(qunit,convert_type_vtk)
     ! Write one pvtu and vtu files for each processor
     ! Otherwise like unstructuredvtk_mpi
     use mod_forest, only: Morton_start, Morton_stop, sfc_to_igrid
@@ -1777,6 +1787,7 @@ contains
     use mod_calculate_xw
 
     integer, intent(in) ::    qunit
+    character(len=*), intent(in) :: convert_type_vtk
 
     double precision, dimension(0:nw+nwauxio)                   :: normconv
     double precision, dimension(ixMlo^D-1:ixMhi^D,ndim)         :: xC_TMP
@@ -1794,7 +1805,7 @@ contains
 
     ! Write pvtu-file:
     if (mype==0) then
-       call write_pvtu(qunit)
+       call write_pvtu(qunit,convert_type_vtk)
     endif
     ! Now write the Source files:
     inquire(qunit,opened=fileopen)
@@ -1842,7 +1853,7 @@ contains
         call calc_x(igrid,xC,xCC)
         call calc_grid(qunit,igrid,xC,xCC,xC_TMP,xCC_TMP,wC_TMP,wCC_TMP,normconv,&
              ixC^L,ixCC^L,.true.)
-        call write_vtk(qunit,ixG^LL,ixC^L,ixCC^L,igrid,nc,np,nx^D,nxC^D,&
+        call write_vtk(qunit,convert_type_vtk,ixG^LL,ixC^L,ixCC^L,igrid,nc,np,nx^D,nxC^D,&
              normconv,wnamei,xC_TMP,xCC_TMP,wC_TMP,wCC_TMP)
       end do ! Morton_no loop
     end do ! level loop
@@ -1857,7 +1868,7 @@ contains
 
   end subroutine punstructuredvtk_mpi
 
-  subroutine unstructuredvtk_mpi(qunit)
+  subroutine unstructuredvtk_mpi(qunit,convert_type_vtu)
     ! output for vtu format to paraview, non-binary version output
     ! parallel, uses calc_grid to compute nwauxio variables
     ! allows renormalizing using convert factors
@@ -1869,6 +1880,7 @@ contains
     use mod_calculate_xw
 
     integer, intent(in) ::    qunit
+    character(len=*), intent(in) :: convert_type_vtu
 
     double precision ::  x_VTK(1:3)
     double precision, dimension(ixMlo^D-1:ixMhi^D,ndim) :: xC_TMP,xC_TMP_recv
@@ -1967,7 +1979,7 @@ contains
           call MPI_SEND(wCC_TMP,1,type_block_wcc_io, 0,itag,icomm,ierrmpi)
           call MPI_SEND(xCC_TMP,1,type_block_xcc_io, 0,itag,icomm,ierrmpi)
         else
-          call write_vtk(qunit,ixG^LL,ixC^L,ixCC^L,igrid,nc,np,nx^D,nxC^D,&
+          call write_vtk(qunit,convert_type_vtu,ixG^LL,ixC^L,ixCC^L,igrid,nc,np,nx^D,nxC^D,&
                              normconv,wnamei,xC_TMP,xCC_TMP,wC_TMP,wCC_TMP)
         end if
       end do ! Morton_no loop
@@ -2005,7 +2017,7 @@ contains
               itag=igrid_recv
               call MPI_RECV(wCC_TMP_recv,1,type_block_wcc_io, ipe,itag,icomm,intstatus(:,1),ierrmpi)
               call MPI_RECV(xCC_TMP_recv,1,type_block_xcc_io, ipe,itag,icomm,intstatus(:,1),ierrmpi)
-              call write_vtk(qunit,ixG^LL,ixrvC^L,ixrvCC^L,igrid_recv,&
+              call write_vtk(qunit,convert_type_vtu,ixG^LL,ixrvC^L,ixrvCC^L,igrid_recv,&
                              nc,np,nx^D,nxC^D,normconv,wnamei,&
                              xC_TMP_recv,xCC_TMP_recv,wC_TMP_recv,wCC_TMP_recv)
             end do ! Morton_no loop
@@ -2023,11 +2035,12 @@ contains
 
   end subroutine unstructuredvtk_mpi
 
-  subroutine write_vtk(qunit,ixI^L,ixC^L,ixCC^L,igrid,nc,np,nx^D,nxC^D,&
+  subroutine write_vtk(qunit,convert_type_vtu,ixI^L,ixC^L,ixCC^L,igrid,nc,np,nx^D,nxC^D,&
                        normconv,wnamei,xC,xCC,wC,wCC)
     use mod_global_parameters
 
     integer, intent(in) :: qunit
+    character(len=*), intent(in) :: convert_type_vtu
     integer, intent(in) :: ixI^L,ixC^L,ixCC^L
     integer, intent(in) :: igrid,nc,np,nx^D,nxC^D
     double precision, intent(in) :: normconv(0:nw+nwauxio) 
@@ -2040,7 +2053,7 @@ contains
     double precision ::  x_VTK(1:3)
     integer :: iw,ix^D,icel,VTK_type
 
-    select case(convert_type)
+    select case(convert_type_vtu)
       case('vtumpi','pvtumpi')
            ! we write out every grid as one VTK PIECE
         write(qunit,'(a,i7,a,i7,a)') &
@@ -2120,11 +2133,12 @@ contains
 
   end subroutine write_vtk
 
-  subroutine write_vti(qunit,ixI^L,ixC^L,ixCC^L,ig^D,nx^D,&
+  subroutine write_vti(qunit,convert_type_vtu,ixI^L,ixC^L,ixCC^L,ig^D,nx^D,&
                        normconv,wnamei,wC,wCC)
     use mod_global_parameters
 
     integer, intent(in) :: qunit
+    character(len=*), intent(in) :: convert_type_vtu
     integer, intent(in) :: ixI^L,ixC^L,ixCC^L
     integer, intent(in) :: ig^D,nx^D
     double precision, intent(in) :: normconv(0:nw+nwauxio) 
@@ -2139,7 +2153,7 @@ contains
     {^D& extent(^D*2-1) = (ig^D-1) * nx^D; }
     {^D& extent(^D*2)   = (ig^D)   * nx^D; }
 
-    select case(convert_type)
+    select case(convert_type_vtu)
       case('vtimpi','pvtimpi')
         ! we write out every grid as one VTK PIECE
         write(qunit,'(a,6(i10),a)') &
@@ -2176,11 +2190,12 @@ contains
 
   end subroutine write_vti
 
-  subroutine write_pvtu(qunit)
+  subroutine write_pvtu(qunit,convert_type_vtu)
     use mod_global_parameters
     use mod_calculate_xw
 
     integer, intent(in) :: qunit
+    character(len=*), intent(in) :: convert_type_vtu
 
     character(len=name_len)   :: wnamei(1:nw+nwauxio),xandwnamei(1:ndim+nw+nwauxio),outtype
     character(len=1024) :: outfilehead
@@ -2188,7 +2203,7 @@ contains
     integer             :: filenr,iw,ipe,iscalars
     logical             :: fileopen
 
-    select case(convert_type)
+    select case(convert_type_vtu)
     case('pvtumpi','pvtuBmpi')
        outtype="PPointData"
     case('pvtuCCmpi','pvtuBCCmpi')
@@ -2245,7 +2260,7 @@ contains
 
   end subroutine write_pvtu
 
-  subroutine tecplot_mpi(qunit)
+  subroutine tecplot_mpi(qunit,convert_type_tec)
     ! output for tecplot (ASCII format)
     ! parallel, uses calc_grid to compute nwauxio variables
     ! allows renormalizing using convert factors
@@ -2259,6 +2274,7 @@ contains
     use mod_calculate_xw
 
     integer, intent(in) :: qunit
+    character(len=*), intent(in) :: convert_type_tec
 
     integer::               igrid,iigrid,level,igonlevel,iw,idim,ix^D
     integer::               NumGridsOnLevel(1:nlevelshi)
@@ -2331,7 +2347,7 @@ contains
     if(mype==0.and.npe>1) allocate(intstatus(MPI_STATUS_SIZE,1))
 
     {^IFONED
-    if(convert_type=='teclinempi') then
+    if(convert_type_tec=='teclinempi') then
       nodes=0
       elems=0
       do level=levmin,levmax
@@ -2402,7 +2418,7 @@ contains
        !       hence not implemented
        !    let entire octree define 1 zone: no difference in interpolation 
        !       properties across TECPLOT zones detected as yet, hence not done
-       select case(convert_type)
+       select case(convert_type_tec)
          case('tecplotmpi')
            ! in this option, we store the corner coordinates, as well as the corner
            ! values of all variables (obtained by averaging). This allows POINT packaging, 
@@ -2563,7 +2579,7 @@ contains
           elemsonlevelmype=NumGridsOnLevel_mype(level,ipe)*{nx^D*}
           nodesonlevel=NumGridsOnLevel(level)*{nxC^D*}
           elemsonlevel=NumGridsOnLevel(level)*{nx^D*}
-          select case(convert_type)
+          select case(convert_type_tec)
            case('tecplotmpi')
               ! in this option, we store the corner coordinates, as well as the corner
               ! values of all variables (obtained by averaging). This allows POINT packaging, 
@@ -2691,7 +2707,7 @@ contains
 
   end subroutine tecplot_mpi
 
-  subroutine punstructuredvtkB_mpi(qunit)
+  subroutine punstructuredvtkB_mpi(qunit,convert_type_vtk)
     ! Write one pvtu and vtu files for each processor
     ! Otherwise like unstructuredvtk_mpi
     ! output for vtu format to paraview, binary version output
@@ -2702,6 +2718,7 @@ contains
     use mod_calculate_xw
 
     integer, intent(in) ::    qunit
+    character(len=*), intent(in) :: convert_type_vtk
 
     double precision ::  x_VTK(1:3)
     double precision, dimension(ixMlo^D-1:ixMhi^D,ndim) :: xC_TMP
@@ -2727,7 +2744,7 @@ contains
 
     ! Write pvtu-file:
     if (mype==0) then
-      call write_pvtu(qunit)
+      call write_pvtu(qunit,convert_type_vtk)
     end if
     ! Now write the Source files:
     inquire(qunit,opened=fileopen)
@@ -2780,7 +2797,7 @@ contains
         if (({rnode(rpxmin^D_,igrid)>=xprobmin^D+(xprobmax^D-xprobmin^D)&
               *writespshift(^D,1)|.and.}).and.({rnode(rpxmax^D_,igrid)&
              <=xprobmax^D-(xprobmax^D-xprobmin^D)*writespshift(^D,2)|.and.})) then
-          select case(convert_type)
+          select case(convert_type_vtk)
            case('pvtuBmpi')
              ! we write out every grid as one VTK PIECE
              write(qunit,'(a,i7,a,i7,a)') &
@@ -2888,7 +2905,7 @@ contains
                            ixC^L,ixCC^L,.true.)
             do iw=1,nw
               if(.not.w_write(iw))cycle
-              select case(convert_type)
+              select case(convert_type_vtk)
                 case('pvtuBmpi')
                   write(qunit) length
                   write(qunit) {(|}real(wC_TMP(ix^D,iw)*normconv(iw)),{ix^D=ixCmin^D,ixCmax^D)}
@@ -2898,7 +2915,7 @@ contains
               end select 
             enddo
             do iw=nw+1,nw+nwauxio
-              select case(convert_type)
+              select case(convert_type_vtk)
                 case('pvtuBmpi')
                   write(qunit) length
                   write(qunit) {(|}real(wC_TMP(ix^D,iw)*normconv(iw)),{ix^D=ixCmin^D,ixCmax^D)}
@@ -2959,7 +2976,7 @@ contains
   end subroutine punstructuredvtkB_mpi
   {^IFTWOD
   ! subroutines to convert 2.5D data to 3D data
-  subroutine unstructuredvtkB23(qunit)
+  subroutine unstructuredvtkB23(qunit,convert_type_vtk)
     ! output for vtu format to paraview, binary version output
     ! not parallel, uses calc_grid to compute nwauxio variables
     use mod_global_parameters
@@ -2967,6 +2984,7 @@ contains
     use mod_calculate_xw
 
     integer, intent(in) ::    qunit
+    character(len=*), intent(in) :: convert_type_vtk
 
     double precision ::  x_VTK(1:3)
     double precision, dimension(ixMlo1-1:ixMhi1,ixMlo2-1:ixMhi2,ixMlo1&
@@ -3062,7 +3080,7 @@ contains
             d3grid=zgridsc*(rnode(rpxmax1_,igrid)-rnode(rpxmin1_,igrid))
           n3grid=nint(zlength/d3grid)
           do i3grid=1,n3grid !subcycles
-          select case(convert_type)
+          select case(convert_type_vtk)
            case('vtuB23')
              ! we write out every grid as one VTK PIECE
              write(qunit,'(a,i7,a,i7,a)') '<Piece NumberOfPoints="',np,&
@@ -3185,7 +3203,7 @@ contains
                ixCCmin3,ixCCmax1,ixCCmax2,ixCCmax3,.true.,i3grid,d3grid,w,zlength,zgridsc)
             do iw=1,nw
               if(.not.w_write(iw))cycle
-              select case(convert_type)
+              select case(convert_type_vtk)
                 case('vtuB23')
                   write(qunit) length
                   write(qunit) (((real(wC_TMP(ix1,ix2,ix3,iw)*normconv(iw)),ix1&
@@ -3199,7 +3217,7 @@ contains
             enddo
             if(nwauxio>0)then
              do iw=nw+1,nw+nwauxio
-               select case(convert_type)
+               select case(convert_type_vtk)
                  case('vtuB23')
                    write(qunit) length
                    write(qunit) (((real(wC_TMP(ix1,ix2,ix3,iw)*normconv(iw)),ix1&
@@ -3264,7 +3282,7 @@ contains
 
   end subroutine unstructuredvtkB23
 
-  subroutine unstructuredvtkBsym23(qunit)
+  subroutine unstructuredvtkBsym23(qunit,convert_type_vtu)
     ! output for vtu format to paraview, binary version output
     ! not parallel, uses calc_grid to compute nwauxio variables
     ! use this subroutine  when the physical domain is symmetric/asymmetric about (0,y,z) 
@@ -3274,6 +3292,7 @@ contains
     use mod_calculate_xw
 
     integer, intent(in) ::    qunit
+    character(len=*), intent(in) :: convert_type_vtu
 
     double precision ::  x_VTK(1:3)
     double precision, dimension(ixMlo1-1:ixMhi1,ixMlo2-1:ixMhi2,ixMlo1&
@@ -3372,7 +3391,7 @@ contains
          n3grid=nint(zlength/d3grid)
          do i3grid=1,n3grid !subcycles
           !! original domain ----------------------------------start 
-          select case(convert_type)
+          select case(convert_type_vtu)
            case('vtuBsym23')
              ! we write out every grid as one VTK PIECE
              write(qunit,'(a,i7,a,i7,a)') '<Piece NumberOfPoints="',np,&
@@ -3451,7 +3470,7 @@ contains
           write(qunit,'(a)')'</Piece>'
           !! original domain ----------------------------------end 
           !! symetric/asymetric mirror domain -----------------start
-          select case(convert_type)
+          select case(convert_type_vtu)
            case('vtuBsym23')
              ! we write out every grid as one VTK PIECE
              write(qunit,'(a,i7,a,i7,a)') '<Piece NumberOfPoints="',np,&
@@ -3574,7 +3593,7 @@ contains
             !! original domain ----------------------------------start 
             do iw=1,nw
               if(.not.w_write(iw))cycle
-              select case(convert_type)
+              select case(convert_type_vtu)
                 case('vtuBsym23')
                   write(qunit) length
                   write(qunit) (((real(wC_TMP(ix1,ix2,ix3,iw)*normconv(iw)),ix1&
@@ -3588,7 +3607,7 @@ contains
             enddo
             if(nwauxio>0)then
              do iw=nw+1,nw+nwauxio
-               select case(convert_type)
+               select case(convert_type_vtu)
                  case('vtuBsym23')
                    write(qunit) length
                    write(qunit) (((real(wC_TMP(ix1,ix2,ix3,iw)*normconv(iw)),ix1&
@@ -3648,7 +3667,7 @@ contains
                wCC_TMP(ixCCmin1:ixCCmax1,ixCCmin2:ixCCmax2,ixCCmin3:ixCCmax3,iw)=&
                -wCC_TMP(ixCCmin1:ixCCmax1,ixCCmin2:ixCCmax2,ixCCmin3:ixCCmax3,iw)
               end if
-              select case(convert_type)
+              select case(convert_type_vtu)
                 case('vtuBsym23')
                   write(qunit) length
                   write(qunit) (((real(wC_TMP(ix1,ix2,ix3,iw)*normconv(iw)),ix1&
@@ -3662,7 +3681,7 @@ contains
             enddo
             if(nwauxio>0)then
              do iw=nw+1,nw+nwauxio
-               select case(convert_type)
+               select case(convert_type_vtu)
                  case('vtuBsym23')
                    write(qunit) length
                    write(qunit) (((real(wC_TMP(ix1,ix2,ix3,iw)*normconv(iw)),ix1&

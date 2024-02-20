@@ -1260,6 +1260,8 @@ contains
     use mod_global_parameters
     use mod_usr_methods
     use mod_convert, only: add_convert_method
+    character(len=std_len) :: convert_type_elem
+    integer :: i
 
     ! after user parameter setting
     gamma_1=twofl_gamma-1.d0
@@ -1308,20 +1310,24 @@ contains
       call mpistop("usr_set_equi_vars has to be implemented in the user file")
     endif
     if(convert .or. autoconvert) then
-      if(convert_type .eq. 'dat_generic_mpi') then
-        if(twofl_dump_full_vars) then
-          if(mype .eq. 0) print*, " add conversion method: split -> full "
-          call add_convert_method(convert_vars_splitting, nw, cons_wnames, "new")
+      do i=1,number_convert_types
+        convert_type_elem=convert_type_array(i)
+        if(convert_type_elem .eq. 'dat_generic_mpi') then
+          if(twofl_dump_full_vars) then
+            if(mype .eq. 0) print*, " add conversion method: split -> full "
+            call add_convert_method(convert_vars_splitting, nw, cons_wnames, "new")
+          endif
+          if(twofl_dump_coll_terms) then
+            if(mype .eq. 0) print*, " add conversion method: dump coll terms "
+            call add_convert_method(dump_coll_terms, 3, (/"alpha    ", "gamma_rec", "gamma_ion"/), "_coll")
+          endif
+          if(twofl_hyperdiffusivity .and. twofl_dump_hyperdiffusivity_coef) then
+            if(mype .eq. 0) print*, " add conversion method: dump hyperdiffusivity coeff. "
+            call associate_dump_hyper()
+          endif
+          exit
         endif
-        if(twofl_dump_coll_terms) then
-          if(mype .eq. 0) print*, " add conversion method: dump coll terms "
-          call add_convert_method(dump_coll_terms, 3, (/"alpha    ", "gamma_rec", "gamma_ion"/), "_coll")
-        endif
-        if(twofl_hyperdiffusivity .and. twofl_dump_hyperdiffusivity_coef) then
-          if(mype .eq. 0) print*, " add conversion method: dump hyperdiffusivity coeff. "
-          call associate_dump_hyper()
-        endif
-      endif
+      enddo
     endif
   end subroutine twofl_check_params
 

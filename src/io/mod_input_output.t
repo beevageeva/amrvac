@@ -29,6 +29,7 @@ module mod_input_output
 
   ! public methods
   public :: snapshot_write_header  
+  public :: get_volume_average  
 
 contains
 
